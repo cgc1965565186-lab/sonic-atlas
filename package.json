@@ -1,0 +1,108 @@
+{
+  "name": "sonic-atlas",
+  "productName": "Sonic Atlas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A desktop immersive music player and sonic topography visualizer.",
+  "author": "Sonic Atlas",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  },
+  "type": "module",
+  "main": "desktop/main.js",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "dev:electron": "node scripts/dev-electron.mjs",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "npm run typecheck && vite build",
+    "build:electron": "npm run build && node scripts/build-dmg.mjs",
+    "build:electron:dir": "npm run build && electron-builder --mac dir --arm64",
+    "build:electron:win": "npm run build && electron-builder --win nsis --x64"
+  },
+  "build": {
+    "appId": "com.sonicatlas.desktop",
+    "productName": "Sonic Atlas",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "server/**/*",
+      "dist/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "SonicAtlas-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "title": "Sonic Atlas ${version}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "SonicAtlas-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "dependencies": {
+    "@fontsource-variable/manrope": "^5.2.7",
+    "@fontsource-variable/noto-sans-sc": "^5.3.0",
+    "@phosphor-icons/react": "^2.1.10",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "@react-three/postprocessing": "^3.0.4",
+    "@tailwindcss/vite": "^4.1.14",
+    "@vitejs/plugin-react": "^5.0.4",
+    "express": "^4.21.2",
+    "framer-motion": "^12.40.0",
+    "NeteaseCloudMusicApi": "4.32.0",
+    "postprocessing": "^6.38.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "three": "^0.184.0",
+    "vite": "^6.2.3",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.184.1",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "jsdom": "^27.2.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.48.1",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0c0b">
+  <meta name="description" content="Sonic Atlas 桌面沉浸式音乐播放器——让每一拍成为可见、可触、可漫游的声音地形。">
+  <title>Sonic Atlas — 让声音成为一片地形</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23101110'/%3E%3Cpath d='M14 43 24 21l8 15 7-20 11 27' fill='none' stroke='%23df8a61' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #0b0c0b;
+      --bg-2: #11130f;
+      --panel: rgba(28, 29, 26, .54);
+      --text: #f0ede6;
+      --muted: #a7a49c;
+      --dim: #6c6c66;
+      --line: rgba(255, 255, 255, .105);
+      --accent: #d7794e;
+      --accent-rgb: 215, 121, 78;
+      --secondary: #8e7147;
+      --hot: #f0c998;
+      --radius: 28px;
+      --ease: cubic-bezier(.16, 1, .3, 1);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--bg); }
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 78% 6%, rgba(var(--accent-rgb), .11), transparent 29rem),
+        linear-gradient(180deg, #0a0b0a 0%, #0e100e 48%, #090a09 100%);
+      font-family: "SF Pro Display", "SF Pro Text", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    body::before {
+      content: "";
+      position: fixed; inset: 0; z-index: 50; pointer-events: none; opacity: .022;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+    }
+    ::selection { color: #17120e; background: var(--hot); }
+    a { color: inherit; text-decoration: none; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { font: inherit; color: inherit; }
+    button:focus-visible, a:focus-visible { outline: 2px solid var(--hot); outline-offset: 4px; }
+    svg { display: block; }
+    .skip-link { position: fixed; top: -80px; left: 20px; z-index: 100; padding: 10px 16px; background: var(--text); color: var(--bg); border-radius: 10px; }
+    .skip-link:focus { top: 20px; }
+    .shell { width: min(1400px, calc(100% - 48px)); margin-inline: auto; }
+    .eyebrow { display: flex; align-items: center; gap: 10px; color: var(--hot); font-size: 11px; font-weight: 700; letter-spacing: .19em; text-transform: uppercase; }
+    .eyebrow::before { content: ""; width: 28px; height: 1px; background: currentColor; }
+    .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 11px; letter-spacing: .08em; }
+    .muted { color: var(--muted); }
+    .section { position: relative; padding: 150px 0; }
+    .section-head { display: grid; grid-template-columns: .8fr 1.2fr; gap: 8vw; align-items: end; margin-bottom: 64px; }
+    .section-head h2 { margin: 18px 0 0; max-width: 680px; font-size: clamp(36px, 5.2vw, 78px); line-height: .98; letter-spacing: -.065em; font-weight: 560; }
+    .section-head p { margin: 0; max-width: 56ch; color: var(--muted); font-size: clamp(16px, 1.35vw, 19px); }
+    .reveal { opacity: 0; transform: translateY(34px); filter: blur(8px); transition: opacity .9s var(--ease), transform .9s var(--ease), filter .9s var(--ease); }
+    .reveal.is-visible { opacity: 1; transform: none; filter: none; }
+
+    .progress { position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 90; background: rgba(255,255,255,.04); }
+    .progress i { display: block; width: 100%; height: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; }
+
+    .nav-wrap { position: fixed; inset: 18px 0 auto; z-index: 40; pointer-events: none; }
+    .nav {
+      pointer-events: auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+      width: min(1100px, calc(100% - 32px)); margin: auto; padding: 9px 10px 9px 16px;
+      border: 1px solid var(--line); border-radius: 18px; background: rgba(15, 16, 14, .66);
+      backdrop-filter: blur(24px) saturate(120%); box-shadow: inset 0 1px rgba(255,255,255,.08), 0 20px 60px rgba(0,0,0,.28);
+    }
+    .brand { display: inline-flex; align-items: center; gap: 10px; width: max-content; font-size: 12px; font-weight: 750; letter-spacing: .13em; }
+    .brand-mark { width: 27px; height: 27px; border: 1px solid rgba(var(--accent-rgb), .45); border-radius: 9px; display: grid; place-items: center; background: rgba(var(--accent-rgb), .09); }
+    .brand-mark svg { width: 17px; }
+    .nav-links { display: flex; align-items: center; gap: 5px; }
+    .nav-links a { padding: 8px 13px; border-radius: 10px; color: var(--muted); font-size: 12px; transition: color .25s, background .25s; }
+    .nav-links a:hover { color: var(--text); background: rgba(255,255,255,.06); }
+    .nav-actions { display: flex; justify-content: flex-end; gap: 7px; }
+    .icon-button { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.035); display: grid; place-items: center; cursor: pointer; transition: transform .25s var(--ease), background .25s; }
+    .icon-button:hover { transform: translateY(-2px); background: rgba(255,255,255,.08); }
+    .icon-button svg { width: 15px; }
+
+    .hero { min-height: 100dvh; display: grid; grid-template-columns: .88fr 1.12fr; align-items: center; gap: 5vw; padding-top: 108px; padding-bottom: 58px; }
+    .hero-copy { position: relative; z-index: 3; padding-left: max(0px, calc((100vw - 1400px)/2)); }
+    .hero h1 { margin: 28px 0 24px; max-width: 720px; font-size: clamp(50px, 5.55vw, 88px); line-height: .9; font-weight: 540; letter-spacing: -.07em; }
+    .hero h1 span { display: block; color: var(--muted); }
+    .hero-lead { max-width: 560px; margin: 0; color: #b8b5ad; font-size: clamp(17px, 1.45vw, 21px); line-height: 1.75; }
+    .hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 36px; }
+    .primary, .secondary-button { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 11px; min-height: 50px; padding: 0 21px; border-radius: 15px; border: 1px solid transparent; font-weight: 680; font-size: 13px; cursor: pointer; overflow: hidden; transition: transform .25s var(--ease), background .25s, border-color .25s; }
+    .primary { color: #17110d; background: var(--hot); box-shadow: 0 14px 48px rgba(var(--accent-rgb), .2), inset 0 1px rgba(255,255,255,.5); }
+    .primary::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 25%, rgba(255,255,255,.45) 46%, transparent 67%); transform: translateX(-120%); transition: transform .7s var(--ease); }
+    .primary:hover::after { transform: translateX(120%); }
+    .primary:hover, .secondary-button:hover { transform: translateY(-3px); }
+    .secondary-button { background: rgba(255,255,255,.035); border-color: var(--line); color: var(--text); backdrop-filter: blur(16px); }
+    .primary svg, .secondary-button svg { width: 16px; }
+    .hero-note { display: flex; gap: 18px; align-items: center; margin-top: 34px; color: var(--dim); font-size: 11px; letter-spacing: .06em; }
+    .hero-note span { display: flex; align-items: center; gap: 7px; }
+    .hero-note i { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+
+    .hero-stage { position: relative; height: min(76vh, 790px); min-height: 590px; border-radius: 42px 0 0 42px; overflow: hidden; isolation: isolate; border: 1px solid rgba(255,255,255,.08); border-right: 0; background: #0d0f0d; box-shadow: inset 0 1px rgba(255,255,255,.08), -30px 50px 100px rgba(0,0,0,.34); }
+    .hero-stage::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(90deg, rgba(11,12,11,.44), transparent 30%), linear-gradient(180deg, transparent 62%, rgba(7,8,7,.78)); }
+    .terrain-canvas { width: 100%; height: 100%; display: block; }
+    .stage-top { position: absolute; top: 22px; left: 24px; right: 24px; z-index: 3; display: flex; justify-content: space-between; align-items: center; }
+    .live-badge { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: rgba(11,12,11,.5); backdrop-filter: blur(14px); color: #d8d3ca; font-size: 10px; letter-spacing: .13em; }
+    .live-badge i { width: 5px; height: 5px; border-radius: 50%; background: var(--hot); animation: breathe 2s ease-in-out infinite; }
+    .stage-index { color: rgba(255,255,255,.42); }
+    .floating-player { position: absolute; z-index: 3; right: 26px; bottom: 24px; width: min(390px, calc(100% - 52px)); padding: 14px; border-radius: 22px; border: 1px solid rgba(255,255,255,.13); background: rgba(25,26,23,.62); backdrop-filter: blur(26px) saturate(125%); box-shadow: inset 0 1px rgba(255,255,255,.11), 0 24px 60px rgba(0,0,0,.32); }
+    .player-main { display: grid; grid-template-columns: 50px 1fr auto; align-items: center; gap: 12px; }
+    .cover { width: 50px; height: 50px; border-radius: 13px; background: radial-gradient(circle at 65% 32%, var(--hot), transparent 17%), conic-gradient(from 220deg, #1a1713, var(--accent), var(--secondary), #171b18, #1a1713); box-shadow: inset 0 1px rgba(255,255,255,.2); }
+    .track strong { display: block; font-size: 13px; letter-spacing: -.01em; }
+    .track small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .play-button { width: 38px; height: 38px; border: 0; border-radius: 50%; color: #1b140f; background: var(--hot); display: grid; place-items: center; cursor: pointer; transition: transform .2s; }
+    .play-button:hover { transform: scale(1.06); }
+    .play-button svg { width: 15px; }
+    .player-progress { height: 2px; margin: 13px 2px 5px; border-radius: 2px; background: rgba(255,255,255,.12); overflow: hidden; }
+    .player-progress i { display: block; width: 43%; height: 100%; background: linear-gradient(90deg, var(--accent), var(--hot)); animation: playhead 9s linear infinite; }
+    .player-time { display: flex; justify-content: space-between; color: #77776f; font-size: 8px; font-family: ui-monospace, monospace; }
+    .stage-caption { position: absolute; z-index: 3; left: 25px; bottom: 27px; width: 150px; color: rgba(255,255,255,.54); font-size: 10px; line-height: 1.6; letter-spacing: .06em; }
+
+    .ticker { overflow: hidden; border-block: 1px solid var(--line); background: rgba(255,255,255,.016); }
+    .ticker-track { display: flex; width: max-content; padding: 18px 0; animation: ticker 30s linear infinite; }
+    .ticker span { display: flex; align-items: center; gap: 22px; padding-right: 22px; color: #88877f; font-size: 11px; letter-spacing: .17em; text-transform: uppercase; white-space: nowrap; }
+    .ticker i { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+
+    .manifesto { padding: 150px 0 90px; }
+    .manifesto-grid { display: grid; grid-template-columns: .32fr 1.68fr; gap: 6vw; }
+    .manifesto-number { padding-top: 12px; color: var(--dim); }
+    .manifesto p { margin: 0; font-size: clamp(35px, 5.5vw, 82px); line-height: 1.07; letter-spacing: -.055em; font-weight: 450; }
+    .manifesto p span { color: #66665f; transition: color .8s; }
+    .manifesto.is-visible p span { color: var(--text); }
+
+    .device-scene { min-height: 760px; display: grid; place-items: center; perspective: 1400px; position: relative; }
+    .device-glow { position: absolute; width: min(80vw, 920px); height: 40%; border-radius: 50%; background: rgba(var(--accent-rgb), .13); filter: blur(90px); }
+    .macbook { width: min(100%, 1060px); transform: rotateX(8deg) scale(.92); transform-origin: 50% 80%; transition: transform .15s linear; will-change: transform; }
+    .screen-shell { padding: 10px 10px 14px; border-radius: 30px 30px 13px 13px; background: linear-gradient(145deg, #3a3b39, #171817 45%, #30312f); box-shadow: inset 0 1px rgba(255,255,255,.42), 0 45px 100px rgba(0,0,0,.48); }
+    .screen { position: relative; aspect-ratio: 16 / 10; overflow: hidden; border-radius: 21px 21px 8px 8px; background: #0b0d0b; border: 1px solid #090a09; }
+    .screen::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(120deg, rgba(255,255,255,.055), transparent 25%); }
+    .screen-hud { position: absolute; z-index: 3; inset: 15px; pointer-events: none; }
+    .screen-brand { position: absolute; top: 0; left: 0; display: flex; align-items: center; gap: 7px; color: #d5d1c9; font-size: 7px; letter-spacing: .14em; }
+    .screen-brand i { width: 14px; height: 14px; border: 1px solid rgba(var(--accent-rgb), .5); border-radius: 5px; }
+    .lyrics-mini { position: absolute; top: 40%; left: 7%; }
+    .lyrics-mini span { display: block; color: rgba(255,255,255,.25); font-size: clamp(7px, 1vw, 13px); line-height: 1.9; }
+    .lyrics-mini strong { color: #f0ece4; font-size: clamp(12px, 1.7vw, 22px); font-weight: 560; }
+    .transport-mini { position: absolute; left: 20%; right: 20%; bottom: 0; height: 42px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; background: rgba(25,25,23,.62); backdrop-filter: blur(18px); }
+    .screen-rail { position: absolute; top: 12%; left: 0; width: 28px; height: 58%; border: 1px solid rgba(255,255,255,.09); border-radius: 10px; background: rgba(25,25,23,.5); }
+    .base { position: relative; width: 112%; height: 28px; margin-left: -6%; margin-top: -2px; border-radius: 2px 2px 38px 38px; background: linear-gradient(180deg, #b0b0aa, #424340 16%, #171817 65%, #343532); box-shadow: 0 22px 35px rgba(0,0,0,.5), inset 0 1px rgba(255,255,255,.65); }
+    .base::after { content: ""; position: absolute; top: 0; left: 42%; width: 16%; height: 5px; border-radius: 0 0 8px 8px; background: #777872; }
+
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); border-block: 1px solid var(--line); }
+    .stat { padding: 30px 24px; border-right: 1px solid var(--line); }
+    .stat:last-child { border-right: 0; }
+    .stat strong { display: block; font-size: clamp(28px, 3vw, 46px); line-height: 1; font-weight: 500; letter-spacing: -.045em; }
+    .stat span { display: block; margin-top: 10px; color: var(--dim); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+
+    .bento { display: grid; grid-template-columns: 1.15fr .85fr; grid-template-rows: 330px 330px; gap: 14px; }
+    .feature { position: relative; overflow: hidden; padding: 30px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255,255,255,.025); isolation: isolate; transition: transform .45s var(--ease), border-color .35s; }
+    .feature::before { content: ""; position: absolute; z-index: -1; width: 360px; height: 360px; left: calc(var(--mx, 50%) - 180px); top: calc(var(--my, 50%) - 180px); border-radius: 50%; background: radial-gradient(circle, rgba(var(--accent-rgb), .13), transparent 68%); opacity: 0; transition: opacity .35s; pointer-events: none; }
+    .feature:hover { transform: translateY(-5px); border-color: rgba(255,255,255,.17); }
+    .feature:hover::before { opacity: 1; }
+    .feature:first-child { grid-row: span 2; }
+    .feature-label { display: flex; align-items: center; justify-content: space-between; color: var(--dim); font-size: 10px; letter-spacing: .15em; }
+    .feature-index { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 9px; display: grid; place-items: center; }
+    .feature h3 { margin: 28px 0 10px; max-width: 450px; font-size: clamp(25px, 3vw, 42px); line-height: 1.08; letter-spacing: -.045em; font-weight: 520; }
+    .feature p { max-width: 46ch; margin: 0; color: var(--muted); font-size: 14px; }
+    .matrix-art { position: absolute; left: 28px; right: 28px; bottom: 25px; height: 44%; display: grid; grid-template-columns: repeat(16, 1fr); align-items: end; gap: 4px; transform: perspective(500px) rotateX(42deg); transform-origin: bottom; }
+    .matrix-art i { display: block; height: calc(10% + var(--h) * 1%); min-height: 3px; border-radius: 2px 2px 0 0; background: linear-gradient(180deg, var(--hot), var(--accent) 38%, rgba(var(--accent-rgb), .08)); box-shadow: 0 0 calc(var(--h) * .12px) rgba(var(--accent-rgb), .4); animation: bars calc(1.6s + var(--d) * .1s) ease-in-out infinite alternate; animation-delay: calc(var(--d) * -.12s); }
+    .palette-orbit { position: absolute; right: -42px; bottom: -70px; width: 280px; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 50%; }
+    .palette-orbit::before, .palette-orbit::after { content: ""; position: absolute; border-radius: 50%; }
+    .palette-orbit::before { inset: 40px; border: 1px dashed rgba(255,255,255,.12); animation: spin 20s linear infinite; }
+    .palette-orbit::after { inset: 86px; background: radial-gradient(circle at 35% 30%, var(--hot), var(--accent) 40%, var(--bg) 73%); box-shadow: 0 0 80px rgba(var(--accent-rgb), .28); }
+    .camera-path { position: absolute; right: 25px; bottom: 22px; width: 48%; opacity: .76; }
+    .camera-path path { fill: none; stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 5 8; animation: dash 16s linear infinite; }
+
+    .palette-lab { display: grid; grid-template-columns: .72fr 1.28fr; gap: 6vw; align-items: center; }
+    .palette-copy h2 { margin: 18px 0 22px; font-size: clamp(38px, 5vw, 72px); line-height: 1; letter-spacing: -.06em; font-weight: 520; }
+    .palette-copy p { max-width: 48ch; color: var(--muted); }
+    .palette-list { display: grid; margin-top: 30px; border-top: 1px solid var(--line); }
+    .palette-button { display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 14px; padding: 14px 2px; color: var(--muted); border: 0; border-bottom: 1px solid var(--line); background: transparent; cursor: pointer; text-align: left; transition: color .25s, padding .35s var(--ease); }
+    .palette-button:hover, .palette-button.is-active { color: var(--text); padding-left: 9px; }
+    .palette-button i { width: 42px; height: 17px; border-radius: 10px; background: linear-gradient(90deg, var(--p1), var(--p2), var(--p3)); box-shadow: inset 0 1px rgba(255,255,255,.2); }
+    .palette-button strong { font-size: 12px; }
+    .palette-button small { color: var(--dim); font-size: 9px; letter-spacing: .1em; }
+    .palette-stage { position: relative; height: 680px; overflow: hidden; border-radius: 38px; border: 1px solid var(--line); background: var(--bg-2); box-shadow: inset 0 1px rgba(255,255,255,.08), 0 50px 100px rgba(0,0,0,.24); }
+    .palette-stage::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, transparent 55%, rgba(7,8,7,.72)); }
+    .palette-meta { position: absolute; z-index: 3; left: 24px; right: 24px; top: 22px; display: flex; justify-content: space-between; color: rgba(255,255,255,.46); }
+    .palette-caption { position: absolute; z-index: 3; left: 28px; bottom: 25px; }
+    .palette-caption strong { display: block; font-size: 18px; font-weight: 520; }
+    .palette-caption span { color: var(--muted); font-size: 11px; }
+
+    .eq-wrap { overflow: hidden; border-block: 1px solid var(--line); background: rgba(255,255,255,.015); }
+    .eq { display: grid; grid-template-columns: repeat(8, 1fr); min-height: 340px; }
+    .band { position: relative; display: flex; flex-direction: column; justify-content: space-between; padding: 25px 18px; border-right: 1px solid var(--line); overflow: hidden; }
+    .band:last-child { border-right: 0; }
+    .band::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: var(--level); background: linear-gradient(180deg, transparent, rgba(var(--accent-rgb), .09)); transform-origin: bottom; animation: bandflow var(--speed) ease-in-out infinite alternate; }
+    .band small { position: relative; z-index: 1; color: var(--dim); font-size: 9px; letter-spacing: .15em; writing-mode: vertical-rl; }
+    .band strong { position: relative; z-index: 1; font-size: 11px; letter-spacing: .08em; }
+
+    .lyrics-section { min-height: 900px; display: grid; place-items: center; overflow: hidden; }
+    .lyrics-bg { position: absolute; inset: 8% 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(var(--accent-rgb), .12), transparent 54%); filter: blur(20px); }
+    #lyricParticles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .lyrics-stage { position: relative; z-index: 2; width: min(1040px, calc(100% - 40px)); text-align: center; }
+    .lyric-line { margin: 0; color: rgba(255,255,255,.18); font-size: clamp(17px, 2vw, 27px); line-height: 2; transition: transform .7s var(--ease), opacity .7s, filter .7s; }
+    .lyric-line.active { margin: 16px 0; color: var(--text); font-size: clamp(34px, 5.2vw, 76px); line-height: 1.2; font-weight: 610; letter-spacing: -.045em; text-shadow: 0 0 45px rgba(var(--accent-rgb), .18); }
+    .lyric-line.active span { display: inline-block; opacity: 0; transform: translateY(18px); filter: blur(8px); animation: characterIn .7s var(--ease) forwards; animation-delay: calc(var(--i) * 24ms); }
+    .translation { display: block; margin-top: 16px; color: var(--muted); font-size: 13px; font-weight: 400; letter-spacing: .04em; }
+    .lyrics-kicker { margin-bottom: 60px; color: var(--dim); font-size: 10px; letter-spacing: .18em; }
+
+    .privacy { display: grid; grid-template-columns: 1fr 1fr; gap: 8vw; align-items: center; }
+    .privacy h2 { margin: 20px 0; max-width: 620px; font-size: clamp(42px, 6vw, 88px); line-height: .95; letter-spacing: -.065em; font-weight: 520; }
+    .privacy p { max-width: 55ch; color: var(--muted); }
+    .security-stack { position: relative; min-height: 490px; }
+    .security-card { position: absolute; width: min(100%, 440px); padding: 24px; border: 1px solid var(--line); border-radius: 26px; background: rgba(25,26,23,.54); backdrop-filter: blur(24px); box-shadow: inset 0 1px rgba(255,255,255,.09), 0 28px 80px rgba(0,0,0,.25); transition: transform .45s var(--ease); }
+    .security-card:nth-child(1) { top: 0; right: 0; transform: rotate(2deg); }
+    .security-card:nth-child(2) { top: 138px; left: 0; transform: rotate(-2.5deg); }
+    .security-card:nth-child(3) { top: 278px; right: 15px; transform: rotate(1deg); }
+    .security-card:hover { transform: rotate(0) translateY(-8px); }
+    .security-card header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .security-card header span { color: var(--dim); font-size: 9px; letter-spacing: .14em; }
+    .security-card svg { width: 21px; color: var(--hot); }
+    .security-card strong { display: block; font-size: 16px; font-weight: 550; }
+    .security-card p { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+
+    .cta { padding: 80px 0 28px; }
+    .cta-box { position: relative; min-height: 580px; padding: 70px; overflow: hidden; display: grid; align-content: center; border: 1px solid var(--line); border-radius: 42px; background: #121310; isolation: isolate; }
+    .cta-box::before { content: ""; position: absolute; z-index: -1; inset: -40%; background: conic-gradient(from 180deg, transparent, rgba(var(--accent-rgb), .18), transparent 28%, rgba(255,255,255,.035), transparent 56%); animation: spin 22s linear infinite; }
+    .cta-box::after { content: ""; position: absolute; z-index: -1; inset: 1px; border-radius: 41px; background: radial-gradient(circle at 70% 50%, rgba(var(--accent-rgb), .18), transparent 30%), #10110f; }
+    .cta h2 { max-width: 840px; margin: 22px 0; font-size: clamp(48px, 7.5vw, 108px); line-height: .88; letter-spacing: -.07em; font-weight: 520; }
+    .cta p { max-width: 52ch; color: var(--muted); }
+    .cta-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+    .cta-legal { margin-top: 20px; color: var(--dim); font-size: 10px; letter-spacing: .04em; }
+    .footer { display: grid; grid-template-columns: 1fr auto; gap: 30px; align-items: end; padding: 72px 0 32px; color: var(--dim); font-size: 11px; }
+    .footer-brand { color: var(--text); font-size: clamp(28px, 4vw, 54px); font-weight: 520; letter-spacing: -.055em; line-height: 1; }
+    .footer-links { display: flex; gap: 18px; }
+    .footer-links a:hover { color: var(--text); }
+
+    .motion-paused *, .motion-paused *::before, .motion-paused *::after { animation-play-state: paused !important; }
+    @keyframes breathe { 50% { opacity: .35; transform: scale(.7); } }
+    @keyframes ticker { to { transform: translateX(-50%); } }
+    @keyframes playhead { from { width: 14%; } to { width: 88%; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes dash { to { stroke-dashoffset: -300; } }
+    @keyframes bars { to { transform: scaleY(.38); opacity: .55; } }
+    @keyframes bandflow { to { transform: scaleY(.55); opacity: .5; } }
+    @keyframes characterIn { to { opacity: 1; transform: none; filter: none; } }
+
+    @media (max-width: 980px) {
+      .nav { grid-template-columns: 1fr auto; }
+      .nav-links { display: none; }
+      .hero { grid-template-columns: 1fr; padding-top: 150px; }
+      .hero-copy { padding: 0 24px; }
+      .hero-stage { width: calc(100% - 24px); margin-left: 24px; height: 620px; min-height: 0; }
+      .section-head, .palette-lab, .privacy { grid-template-columns: 1fr; }
+      .bento { grid-template-columns: 1fr; grid-template-rows: 560px 300px 300px; }
+      .feature:first-child { grid-row: auto; }
+      .palette-stage { order: -1; height: 580px; }
+      .eq { grid-template-columns: repeat(4, 1fr); }
+      .band:nth-child(4) { border-right: 0; }
+      .band:nth-child(-n+4) { border-bottom: 1px solid var(--line); }
+      .security-stack { margin-top: 30px; }
+    }
+    @media (max-width: 640px) {
+      .shell { width: min(100% - 28px, 1400px); }
+      .section { padding: 98px 0; }
+      .nav-wrap { top: 10px; }
+      .nav { width: calc(100% - 20px); border-radius: 16px; }
+      .brand span { display: none; }
+      .hero { padding-top: 118px; gap: 46px; }
+      .hero h1 { font-size: clamp(48px, 13vw, 56px); line-height: .92; }
+      .hero-actions > * { width: 100%; }
+      .hero-note { align-items: flex-start; flex-direction: column; gap: 7px; }
+      .hero-stage { height: 520px; border-radius: 30px 0 0 30px; }
+      .stage-caption { display: none; }
+      .floating-player { left: 16px; right: 16px; bottom: 16px; width: auto; }
+      .manifesto { padding: 105px 0 40px; }
+      .manifesto-grid { grid-template-columns: 1fr; gap: 20px; }
+      .section-head { gap: 30px; margin-bottom: 42px; }
+      .device-scene { min-height: 470px; }
+      .screen-shell { padding: 6px 6px 9px; border-radius: 20px 20px 9px 9px; }
+      .base { width: 100%; margin-left: 0; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .stat:nth-child(2) { border-right: 0; }
+      .stat:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .bento { grid-template-rows: 500px 300px 300px; }
+      .feature { padding: 22px; }
+      .matrix-art { grid-template-columns: repeat(12, 1fr); }
+      .matrix-art i:nth-child(n+13) { display: none; }
+      .palette-stage { height: 480px; border-radius: 28px; }
+      .palette-button { grid-template-columns: 42px 1fr; }
+      .palette-button small { display: none; }
+      .eq { min-height: 500px; }
+      .band { padding: 18px 10px; }
+      .band strong { font-size: 8px; }
+      .lyrics-section { min-height: 720px; }
+      .lyrics-stage .lyric-line:not(.active) { font-size: 13px; }
+      .security-stack { min-height: 550px; }
+      .security-card { width: 92%; }
+      .cta-box { min-height: 560px; padding: 36px 24px; border-radius: 30px; }
+      .footer { grid-template-columns: 1fr; }
+      .footer-links { flex-wrap: wrap; }
+    }
+    @media (pointer: coarse) {
+      .feature:hover { transform: none; }
+      .macbook { transform: none !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .2s !important; }
+      .reveal { opacity: 1; transform: none; filter: none; }
+      .macbook { transform: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <div class="progress" aria-hidden="true"><i id="scrollProgress"></i></div>
+
+  <div class="nav-wrap">
+    <nav class="nav" aria-label="主要导航">
+      <a class="brand" href="#top" aria-label="Sonic Atlas 首页">
+        <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 17 8.2 6l4 8 3.6-10L21 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span>SONIC ATLAS</span>
+      </a>
+      <div class="nav-links">
+        <a href="#experience">声场</a><a href="#palette">配色</a><a href="#lyrics">歌词</a><a href="#privacy">隐私</a>
+      </div>
+      <div class="nav-actions">
+        <button class="icon-button" id="motionToggle" type="button" aria-label="暂停页面动画" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <a class="icon-button" href="./SonicAtlas-0.1.0-eight-themes-media-keys-arm64.dmg" aria-label="下载 Sonic Atlas"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      </div>
+    </nav>
+  </div>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-copy reveal is-visible">
+        <div class="eyebrow">Desktop Immersive Player · 2026</div>
+        <h1>让声音，<span>成为一片地形。</span></h1>
+        <p class="hero-lead">Sonic Atlas 将每一段低频、呼吸与瞬态，重构为可见、可漫游的声音地貌。不是频谱装饰，而是一座只属于这首歌的动态世界。</p>
+        <div class="hero-actions">
+          <a class="primary magnetic" href="./SonicAtlas-0.1.0-eight-themes-media-keys-arm64.dmg"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>下载 macOS ARM64 版</a>
+          <a class="secondary-button magnetic" href="#experience">进入声音世界<svg viewBox="0 0 24 24" fill="none"><path d="m8 5 7 7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        </div>
+        <div class="hero-note"><span><i></i>个人学习与研究</span><span>Electron · React · R3F</span><span>未签名测试构建</span></div>
+      </div>
+      <div class="hero-stage reveal is-visible">
+        <canvas class="terrain-canvas" data-grid="25" aria-label="随节拍起伏的交互式声音地形"></canvas>
+        <div class="stage-top"><span class="live-badge"><i></i> LIVE TERRAIN</span><span class="stage-index mono">64 × 64 / FFT 2048</span></div>
+        <div class="stage-caption mono">MOVE POINTER<br>TO BEND THE FIELD<br><br>CLICK TO TRIGGER<br>A LIGHT RIPPLE</div>
+        <div class="floating-player">
+          <div class="player-main"><div class="cover"></div><div class="track"><strong>Atlas of a Quiet Night</strong><small>Sonic Atlas · Programmed Demo</small></div><button class="play-button" type="button" aria-label="暂停演示"><svg class="play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3.5v14H7zm6.5 0H17v14h-3.5z"/></svg></button></div>
+          <div class="player-progress"><i></i></div><div class="player-time"><span>02:17</span><span>05:08</span></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="ticker" aria-label="产品能力">
+      <div class="ticker-track">
+        <span>INSTANCED TOPOGRAPHY <i></i> COVER ADAPTIVE PALETTE <i></i> CINEMATIC CAMERA <i></i> 8-BAND VISUAL EQ <i></i> LOCAL-FIRST PRIVACY <i></i> FIVE-LINE LYRICS <i></i></span>
+        <span aria-hidden="true">INSTANCED TOPOGRAPHY <i></i> COVER ADAPTIVE PALETTE <i></i> CINEMATIC CAMERA <i></i> 8-BAND VISUAL EQ <i></i> LOCAL-FIRST PRIVACY <i></i> FIVE-LINE LYRICS <i></i></span>
+      </div>
+    </div>
+
+    <section class="manifesto shell reveal">
+      <div class="manifesto-grid"><div class="manifesto-number mono">01 — MANIFESTO</div><p>我们没有给音乐再加一层界面。<span>我们让界面退后，让节奏、光线与空间站到前面。</span></p></div>
+    </section>
+
+    <section class="section shell" id="experience">
+      <div class="section-head reveal">
+        <div><div class="eyebrow">The listening space</div><h2>一块会呼吸的声音坐标。</h2></div>
+        <p>64×64 柱体并不随机舞动。低频聚拢成有重量的中心块群，中频形成连贯流场，高频只点亮边缘、波峰与空气粒子。每一层响应，都有秩序。</p>
+      </div>
+      <div class="device-scene reveal">
+        <div class="device-glow"></div>
+        <div class="macbook" id="macbook">
+          <div class="screen-shell"><div class="screen">
+            <canvas class="terrain-canvas" data-grid="21" aria-label="Sonic Atlas 软件界面预览"></canvas>
+            <div class="screen-hud"><div class="screen-brand"><i></i> SONIC ATLAS</div><div class="screen-rail"></div><div class="lyrics-mini"><span>雾穿过山脊，也穿过凌晨</span><strong>这一拍，正抵达它的光</strong><span>Every pulse finds its horizon</span></div><div class="transport-mini"></div></div>
+          </div></div><div class="base"></div>
+        </div>
+      </div>
+      <div class="stats reveal">
+        <div class="stat"><strong data-count="4096">0</strong><span>Instanced cells</span></div>
+        <div class="stat"><strong data-count="1">0</strong><span>Terrain draw call</span></div>
+        <div class="stat"><strong data-count="8">0</strong><span>Visual frequency bands</span></div>
+        <div class="stat"><strong data-count="60">0</strong><span>Target frames / sec</span></div>
+      </div>
+    </section>
+
+    <section class="section shell">
+      <div class="section-head reveal"><div><div class="eyebrow">Designed in layers</div><h2>克制，但绝不单调。</h2></div><p>颜色、涟漪、镜头和歌词各自只负责一件事。它们不是争抢注意力的特效，而是共同服务于音乐情绪的一套电影语言。</p></div>
+      <div class="bento">
+        <article class="feature spotlight reveal"><div class="feature-label"><span>SONIC TOPOGRAPHY</span><span class="feature-index">01</span></div><h3>一张真正随频率塑形的地形。</h3><p>单个 InstancedMesh 承载完整矩阵，包络与软限高让高峰保留力度，也不会撕裂画面。</p><div class="matrix-art" aria-hidden="true"></div></article>
+        <article class="feature spotlight reveal"><div class="feature-label"><span>COLOR INTELLIGENCE</span><span class="feature-index">02</span></div><h3>封面决定这一首歌的光。</h3><p>OKLab 聚类提取克制的主色、双辅助色与高光，切歌时在 1.35 秒内自然过渡。</p><div class="palette-orbit" aria-hidden="true"></div></article>
+        <article class="feature spotlight reveal"><div class="feature-label"><span>CINEMATIC MOTION</span><span class="feature-index">03</span></div><h3>镜头跟随能量，而不是晃动。</h3><p>环绕巡航、低空贴地与缓慢推近，用平滑阻尼把节拍变成镜头呼吸。</p><svg class="camera-path" viewBox="0 0 300 120" aria-hidden="true"><path d="M4 88C65 10 118 112 171 51s89-38 126-43"/><circle cx="171" cy="51" r="4" fill="currentColor"/></svg></article>
+      </div>
+    </section>
+
+    <section class="section shell" id="palette">
+      <div class="palette-lab">
+        <div class="palette-copy reveal"><div class="eyebrow">Adaptive chroma</div><h2>八种基调，和无数首歌。</h2><p>内置主题为 Demo 与手动控制提供稳定基线。真实歌曲则从封面生长出独有色彩，并让地形、雾、粒子和少量 HUD 强调色同步迁移。</p><div class="palette-list" role="listbox" aria-label="选择地形配色"></div></div>
+        <div class="palette-stage reveal"><canvas class="terrain-canvas" data-grid="23" aria-label="可切换颜色的声音地形"></canvas><div class="palette-meta mono"><span>LIVE COLOR STUDY</span><span>OKLAB / 5 CLUSTERS</span></div><div class="palette-caption"><strong id="paletteName">煤黑琥珀</strong><span>COAL AMBER · DEFAULT</span></div></div>
+      </div>
+    </section>
+
+    <section class="eq-wrap" aria-label="八段视觉均衡器">
+      <div class="eq shell">
+        <div class="band" style="--level:88%;--speed:1.4s"><small>01 / CENTER MASS</small><strong>SUB BASS</strong></div><div class="band" style="--level:76%;--speed:1.7s"><small>02 / WEIGHT</small><strong>BASS</strong></div><div class="band" style="--level:64%;--speed:2.1s"><small>03 / SLOW FLOW</small><strong>LOW MID</strong></div><div class="band" style="--level:70%;--speed:1.85s"><small>04 / DIRECTION</small><strong>MID</strong></div><div class="band" style="--level:55%;--speed:1.25s"><small>05 / PEAKS</small><strong>HIGH MID</strong></div><div class="band" style="--level:50%;--speed:1.1s"><small>06 / FLASH</small><strong>PRESENCE</strong></div><div class="band" style="--level:42%;--speed:.95s"><small>07 / EDGES</small><strong>BRILLIANCE</strong></div><div class="band" style="--level:34%;--speed:.8s"><small>08 / PARTICLES</small><strong>AIR</strong></div>
+      </div>
+    </section>
+
+    <section class="section lyrics-section" id="lyrics">
+      <div class="lyrics-bg"></div><canvas id="lyricParticles" aria-hidden="true"></canvas>
+      <div class="lyrics-stage reveal"><div class="lyrics-kicker mono">LYRICS / FRAME 02:47.182</div><p class="lyric-line">风从未停下，只是换了方向</p><p class="lyric-line">城市的光落进很远的海</p><p class="lyric-line active" id="activeLyric" aria-live="polite"></p><p class="lyric-line">每一个回声都找到自己的岸</p><p class="lyric-line">而我们继续向声音深处走</p></div>
+    </section>
+
+    <section class="section shell" id="privacy">
+      <div class="privacy">
+        <div class="reveal"><div class="eyebrow">Local by design</div><h2>沉浸，不以隐私为代价。</h2><p>网易云登录凭据只留在你的电脑上。主进程通过系统安全存储加密，Renderer 无法读取 Cookie；本地服务只监听 127.0.0.1，也不会缓存或重新分发完整音乐。</p></div>
+        <div class="security-stack reveal">
+          <article class="security-card"><header><span>01 / CREDENTIALS</span><svg viewBox="0 0 24 24" fill="none"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></header><strong>macOS Keychain 保护登录状态</strong><p>safeStorage 不可用时仅保留本次会话，不降级为明文文件。</p></article>
+          <article class="security-card"><header><span>02 / NETWORK</span><svg viewBox="0 0 24 24" fill="none"><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16M4 12a8 8 0 1 0 16 0 8 8 0 1 0-16 0" stroke="currentColor" stroke-width="1.7"/></svg></header><strong>只连接本机代理和白名单域名</strong><p>封面、歌词和媒体 Range 都经过本机服务统一校验。</p></article>
+          <article class="security-card"><header><span>03 / RIGHTS</span><svg viewBox="0 0 24 24" fill="none"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></header><strong>尊重会员、版权与地区限制</strong><p>不解灰、不换源，只播放当前账号已有权限的内容。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta shell" id="download">
+      <div class="cta-box reveal"><div class="eyebrow">Available now · macOS ARM64</div><h2>下一首歌，去地形里听。</h2><p>Sonic Atlas 当前为个人学习与研究版。下载后拖入“应用程序”即可开始；没有音乐时，内置 110 BPM Demo 也能完整体验声场。</p><div class="cta-actions"><a class="primary magnetic" href="./SonicAtlas-0.1.0-eight-themes-media-keys-arm64.dmg"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>下载 Sonic Atlas 0.1.0</a><a class="secondary-button magnetic" href="#top">回到地形</a></div><div class="cta-legal">ARM64 · 186 MB · 未签名本机验证构建 · 仅限个人学习与研究</div></div>
+    </section>
+  </main>
+
+  <footer class="footer shell"><div><div class="footer-brand">SONIC ATLAS</div><div style="margin-top:14px">把声音映射成一片可漫游的地形。</div></div><div class="footer-links"><a href="#experience">声场</a><a href="#palette">配色</a><a href="#lyrics">歌词</a><a href="#privacy">隐私</a><span>© 2026</span></div></footer>
+
+  <script>
+    (() => {
+      'use strict';
+      const root = document.documentElement;
+      if (location.hostname.endsWith('.github.io')) {
+        const owner = location.hostname.split('.')[0];
+        const releaseUrl = `https://github.com/${owner}/sonic-atlas/releases/latest/download/SonicAtlas-0.1.0-eight-themes-media-keys-arm64.dmg`;
+        document.querySelectorAll('a[href$=".dmg"]').forEach((link) => { link.href = releaseUrl; });
+      }
+      const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let motionEnabled = !prefersReduced;
+      let globalPalette = ['#d7794e', '#8e7147', '#f0c998'];
+
+      const palettes = [
+        { name:'煤黑琥珀', en:'COAL AMBER', colors:['#c45f30','#8f7445','#ffd08a'], bg:'#0b0c0b', rgb:'196,95,48' },
+        { name:'深海青灰', en:'DEEP SEA', colors:['#5b9a98','#526b7c','#c5e2da'], bg:'#091011', rgb:'91,154,152' },
+        { name:'暗红银幕', en:'RED SCREEN', colors:['#a94836','#827975','#efb89e'], bg:'#100b0b', rgb:'169,72,54' },
+        { name:'墨林铜金', en:'FOREST COPPER', colors:['#5e9872','#9a6b3b','#e6c28b'], bg:'#08100c', rgb:'94,152,114' },
+        { name:'暮紫烟金', en:'VIOLET DUSK', colors:['#81638e','#8c5b55','#e5c2ad'], bg:'#100c13', rgb:'129,99,142' },
+        { name:'冰川靛蓝', en:'INDIGO GLACIER', colors:['#547da1','#6b778b','#cbd6df'], bg:'#0a0e14', rgb:'84,125,161' },
+        { name:'砂岩古金', en:'SANDSTONE GOLD', colors:['#ae8642','#78604f','#ead7aa'], bg:'#100e09', rgb:'174,134,66' },
+        { name:'黑玫瑰', en:'ROSE NOIR', colors:['#a84d68','#755f75','#efbdc9'], bg:'#110a0e', rgb:'168,77,104' }
+      ];
+
+      const hex = value => {
+        const number = parseInt(value.slice(1), 16);
+        return { r:number >> 16, g:(number >> 8) & 255, b:number & 255 };
+      };
+      const mix = (a,b,t) => {
+        const x=hex(a), y=hex(b); return `rgb(${Math.round(x.r+(y.r-x.r)*t)},${Math.round(x.g+(y.g-x.g)*t)},${Math.round(x.b+(y.b-x.b)*t)})`;
+      };
+
+      class Terrain {
+        constructor(canvas) {
+          this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.n=Number(canvas.dataset.grid)||23;
+          this.pointer={x:0,y:0,active:0}; this.ripples=[-10,-10,-10]; this.rippleIndex=0; this.palette=globalPalette;
+          this.visible=true; this.resize=this.resize.bind(this); this.draw=this.draw.bind(this);
+          this.resize(); new ResizeObserver(this.resize).observe(canvas);
+          new IntersectionObserver(entries => { this.visible=entries[0].isIntersecting; }, {rootMargin:'120px'}).observe(canvas);
+          canvas.addEventListener('pointermove', e => { const r=canvas.getBoundingClientRect(); this.pointer.x=(e.clientX-r.left)/r.width*2-1; this.pointer.y=(e.clientY-r.top)/r.height*2-1; this.pointer.active=1; }, {passive:true});
+          canvas.addEventListener('pointerleave',()=>this.pointer.active=0);
+          canvas.addEventListener('pointerdown',()=>{ this.rippleIndex=(this.rippleIndex+1)%3; this.ripples[this.rippleIndex]=performance.now()/1000; });
+          requestAnimationFrame(this.draw);
+        }
+        resize(){ const r=this.canvas.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,1.5); this.canvas.width=Math.max(1,Math.floor(r.width*d)); this.canvas.height=Math.max(1,Math.floor(r.height*d)); this.ctx.setTransform(d,0,0,d,0,0); this.w=r.width; this.h=r.height; }
+        setPalette(colors){ this.palette=colors.slice(); }
+        draw(now){ requestAnimationFrame(this.draw); if(!this.visible) return; const ctx=this.ctx,w=this.w,h=this.h,t=now*.001; ctx.clearRect(0,0,w,h);
+          const bg=ctx.createRadialGradient(w*.58,h*.42,0,w*.58,h*.42,w*.78); bg.addColorStop(0,mix(this.palette[0],'#0b0c0b',.78)); bg.addColorStop(.48,mix(this.palette[1],'#080908',.88)); bg.addColorStop(1,'#080908'); ctx.fillStyle=bg; ctx.fillRect(0,0,w,h);
+          const n=this.n,cw=Math.min(w/(n*1.08),h/(n*.72)),ch=cw*.37,cx=w*.54,hy=h*.19, maxH=Math.min(76,h*.15);
+          for(let z=0;z<n;z++) for(let x=0;x<n;x++){
+            const nx=(x/(n-1)-.5)*2,nz=(z/(n-1)-.5)*2,r=Math.hypot(nx*.9,nz); let energy=.08;
+            energy+=Math.exp(-r*r*2.8)*(.55+.22*Math.sin(t*3.2-r*8)); energy+=(Math.sin(nx*4.2+nz*2.1-t*1.55)+1)*.085*Math.exp(-r*.7);
+            energy+=(Math.sin(nx*1.5-nz*5.2+t*1.15)+1)*.06; energy+=Math.max(0,Math.sin(t*6.9-(x+z)*.22))*.1*Math.exp(-r*1.9);
+            if(this.pointer.active){ const d=Math.hypot(nx-this.pointer.x,nz-this.pointer.y); energy+=Math.exp(-d*d*6)*.45; }
+            for(let i=0;i<3;i++){ const age=t-this.ripples[i]; if(age>0&&age<2.8){ const ring=Math.exp(-Math.pow(r-age*.54,2)*90)*(1-age/2.8); energy+=ring*.62; } }
+            const bh=Math.min(maxH, Math.max(2,energy*maxH)); const sx=cx+(x-z)*cw*.5, sy=hy+(x+z)*ch*.5; const top=sy-bh;
+            const seed=(Math.sin(x*12.9898+z*78.233)*43758.5453)%1, blend=Math.abs(seed); const c=blend>.72?this.palette[1]:this.palette[0], topColor=energy>.72?mix(c,this.palette[2],.7):mix(c,this.palette[2],.16);
+            ctx.beginPath(); ctx.moveTo(sx,top); ctx.lineTo(sx+cw*.46,top+ch*.46); ctx.lineTo(sx,top+ch*.92); ctx.lineTo(sx-cw*.46,top+ch*.46); ctx.closePath(); ctx.fillStyle=topColor; ctx.fill();
+            ctx.beginPath(); ctx.moveTo(sx-cw*.46,top+ch*.46); ctx.lineTo(sx,top+ch*.92); ctx.lineTo(sx,sy+ch*.92); ctx.lineTo(sx-cw*.46,sy+ch*.46); ctx.closePath(); ctx.fillStyle=mix(c,'#070807',.62); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(sx+cw*.46,top+ch*.46); ctx.lineTo(sx,top+ch*.92); ctx.lineTo(sx,sy+ch*.92); ctx.lineTo(sx+cw*.46,sy+ch*.46); ctx.closePath(); ctx.fillStyle=mix(c,'#070807',.78); ctx.fill();
+          }
+          const vignette=ctx.createRadialGradient(w*.5,h*.45,w*.12,w*.5,h*.45,w*.72); vignette.addColorStop(.55,'rgba(0,0,0,0)'); vignette.addColorStop(1,'rgba(0,0,0,.72)'); ctx.fillStyle=vignette;ctx.fillRect(0,0,w,h);
+        }
+      }
+
+      const terrains=[...document.querySelectorAll('.terrain-canvas')].map(c=>new Terrain(c));
+      const paletteList=document.querySelector('.palette-list');
+      palettes.forEach((p,index)=>{ const b=document.createElement('button'); b.type='button'; b.className='palette-button'+(index===0?' is-active':''); b.setAttribute('role','option'); b.setAttribute('aria-selected',index===0?'true':'false'); b.innerHTML=`<i style="--p1:${p.colors[0]};--p2:${p.colors[1]};--p3:${p.colors[2]}"></i><strong>${p.name}</strong><small>${p.en}</small>`; b.addEventListener('click',()=>{
+          globalPalette=p.colors; terrains.forEach(t=>t.setPalette(p.colors)); root.style.setProperty('--accent',p.colors[0]); root.style.setProperty('--secondary',p.colors[1]); root.style.setProperty('--hot',p.colors[2]); root.style.setProperty('--accent-rgb',p.rgb); root.style.setProperty('--bg-2',p.bg);
+          document.querySelectorAll('.palette-button').forEach(x=>{x.classList.remove('is-active');x.setAttribute('aria-selected','false')}); b.classList.add('is-active'); b.setAttribute('aria-selected','true'); document.getElementById('paletteName').textContent=p.name; document.querySelector('.palette-caption span').textContent=`${p.en} · PRESET ${String(index+1).padStart(2,'0')}`;
+        }); paletteList.appendChild(b); });
+
+      const matrix=document.querySelector('.matrix-art');
+      for(let i=0;i<32;i++){ const bar=document.createElement('i'); bar.style.setProperty('--h',String(18+Math.round((Math.sin(i*.82)+1)*32))); bar.style.setProperty('--d',String(i%9)); matrix.appendChild(bar); }
+
+      const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{ if(entry.isIntersecting){ entry.target.classList.add('is-visible'); observer.unobserve(entry.target); } }),{threshold:.12});
+      document.querySelectorAll('.reveal:not(.is-visible)').forEach(el=>observer.observe(el));
+
+      const countObserver=new IntersectionObserver(entries=>entries.forEach(entry=>{ if(!entry.isIntersecting)return; const el=entry.target,target=Number(el.dataset.count),start=performance.now(),duration=1100; const tick=now=>{const p=Math.min(1,(now-start)/duration), eased=1-Math.pow(1-p,4);el.textContent=Math.round(target*eased).toLocaleString();if(p<1)requestAnimationFrame(tick)}; requestAnimationFrame(tick);countObserver.unobserve(el); }),{threshold:.7});
+      document.querySelectorAll('[data-count]').forEach(el=>countObserver.observe(el));
+
+      document.querySelectorAll('.spotlight').forEach(card=>card.addEventListener('pointermove',e=>{ const r=card.getBoundingClientRect(); card.style.setProperty('--mx',`${e.clientX-r.left}px`);card.style.setProperty('--my',`${e.clientY-r.top}px`); },{passive:true}));
+      if(matchMedia('(pointer:fine)').matches) document.querySelectorAll('.magnetic').forEach(el=>{ el.addEventListener('pointermove',e=>{const r=el.getBoundingClientRect();el.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.08}px,${(e.clientY-r.top-r.height/2)*.12}px)`});el.addEventListener('pointerleave',()=>el.style.transform=''); });
+
+      const progress=document.getElementById('scrollProgress'),macbook=document.getElementById('macbook'); let scrollQueued=false;
+      const updateScroll=()=>{ const max=document.documentElement.scrollHeight-innerHeight,p=max?scrollY/max:0; progress.style.transform=`scaleX(${p})`; if(motionEnabled&&innerWidth>700){ const r=macbook.parentElement.getBoundingClientRect(), local=Math.max(0,Math.min(1,(innerHeight-r.top)/(innerHeight+r.height))); macbook.style.transform=`rotateX(${10-local*8}deg) scale(${.86+local*.14}) translateY(${(1-local)*36}px)`; } scrollQueued=false; };
+      addEventListener('scroll',()=>{if(!scrollQueued){scrollQueued=true;requestAnimationFrame(updateScroll)}},{passive:true}); updateScroll();
+
+      const lyricTexts=[['这一拍，正抵达它的光','This pulse is arriving at its light'],['让低频沉入大地的中央','Let the bass settle into the earth'],['所有颜色，都从一首歌生长','Every color grows from a song']]; let lyricIndex=0; const lyric=document.getElementById('activeLyric');
+      const setLyric=()=>{ const [text,translation]=lyricTexts[lyricIndex%lyricTexts.length]; lyric.innerHTML=[...text].map((c,i)=>`<span style="--i:${i}">${c===' '?'&nbsp;':c}</span>`).join('')+`<small class="translation">${translation}</small>`; burstParticles(); lyricIndex++; };
+      const particleCanvas=document.getElementById('lyricParticles'),pctx=particleCanvas.getContext('2d'),particles=Array.from({length:76},()=>({x:0,y:0,vx:0,vy:0,life:0,size:1}));
+      const resizeParticles=()=>{const d=Math.min(devicePixelRatio||1,1.5),r=particleCanvas.getBoundingClientRect();particleCanvas.width=r.width*d;particleCanvas.height=r.height*d;pctx.setTransform(d,0,0,d,0,0);particleCanvas._w=r.width;particleCanvas._h=r.height}; new ResizeObserver(resizeParticles).observe(particleCanvas);resizeParticles();
+      function burstParticles(){ if(!motionEnabled)return; const w=particleCanvas._w,h=particleCanvas._h; particles.forEach((p,i)=>{const a=i/particles.length*Math.PI*2+(i%7)*.18,s=.25+(i%9)*.055;p.x=w*.5+(Math.sin(i*8.21)*w*.16);p.y=h*.5+(Math.cos(i*5.13)*22);p.vx=Math.cos(a)*s;p.vy=Math.sin(a)*s-.12;p.life=1;p.size=.6+(i%4)*.45;}); }
+      const drawParticles=()=>{requestAnimationFrame(drawParticles);if(!motionEnabled)return;pctx.clearRect(0,0,particleCanvas._w,particleCanvas._h);const c=hex(globalPalette[2]);particles.forEach(p=>{if(p.life<=0)return;p.x+=p.vx;p.y+=p.vy;p.vy+=.002;p.life-=.012;pctx.beginPath();pctx.arc(p.x,p.y,p.size,0,Math.PI*2);pctx.fillStyle=`rgba(${c.r},${c.g},${c.b},${Math.max(0,p.life)*.38})`;pctx.fill();});};drawParticles();setLyric();const lyricTimer=setInterval(()=>{if(motionEnabled)setLyric()},4300);
+
+      const playButton=document.querySelector('.play-button'); playButton.addEventListener('click',()=>{ motionEnabled=!motionEnabled; document.body.classList.toggle('motion-paused',!motionEnabled); playButton.setAttribute('aria-label',motionEnabled?'暂停演示':'继续演示'); playButton.innerHTML=motionEnabled?'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3.5v14H7zm6.5 0H17v14h-3.5z"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 11 7-11 7z"/></svg>'; });
+      const motionToggle=document.getElementById('motionToggle'); motionToggle.addEventListener('click',()=>{motionEnabled=!motionEnabled;document.body.classList.toggle('motion-paused',!motionEnabled);motionToggle.setAttribute('aria-pressed',String(!motionEnabled));motionToggle.setAttribute('aria-label',motionEnabled?'暂停页面动画':'继续页面动画');motionToggle.innerHTML=motionEnabled?'<svg viewBox="0 0 24 24" fill="none"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 11 7-11 7z"/></svg>';});
+      addEventListener('beforeunload',()=>clearInterval(lyricTimer));
+    })();
+  </script>
+</body>
+</html>

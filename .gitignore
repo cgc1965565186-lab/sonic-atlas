@@ -1,0 +1,10 @@
+node_modules/
+dist/
+release/
+coverage/
+.DS_Store
+*.log
+*.swp
+data/
+work/
+outputs/*.dmg
