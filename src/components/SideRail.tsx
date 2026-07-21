@@ -3,6 +3,7 @@ import {
   ArrowsOut,
   MagnifyingGlass,
   Playlist,
+  ShieldCheck,
   SlidersHorizontal,
   UserCircle,
 } from '@phosphor-icons/react';
@@ -20,6 +21,7 @@ const entries: Array<{
   { id: 'library', label: '歌单', icon: Playlist },
   { id: 'visual', label: '声场', icon: SlidersHorizontal },
   { id: 'account', label: '账号', icon: UserCircle },
+  { id: 'help', label: '安装帮助', icon: ShieldCheck },
 ];
 
 export function SideRail() {

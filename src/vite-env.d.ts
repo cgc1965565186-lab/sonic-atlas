@@ -5,6 +5,7 @@ import type { MediaCommand } from './player/mediaControls';
 
 interface SonicAtlasDesktop {
   getRuntimeConfig(): Promise<{ apiBaseUrl: string; platform: string }>;
+  openInstallHelp(): Promise<void>;
   getAuthStatus(): Promise<AuthStatus>;
   openNeteaseLogin(): Promise<AuthStatus>;
   saveManualCookie(cookie: string): Promise<AuthStatus>;

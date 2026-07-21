@@ -6,6 +6,7 @@ import {
   CloudSlash,
   MagnifyingGlass,
   Play,
+  ShieldCheck,
   SignOut,
   SpinnerGap,
   UserCircle,
@@ -301,11 +302,31 @@ function AccountPanel() {
   );
 }
 
+function InstallHelpPanel() {
+  const openInstallHelp = () => void window.sonicAtlas?.openInstallHelp();
+  return (
+    <div className="drawer-panel install-help-panel">
+      <PanelState icon={<ShieldCheck />} title="macOS 首次安装帮助" detail="Sonic Atlas 是未签名测试构建；请只在确认下载来源可信时为它创建例外。" />
+      <ol>
+        <li>从“应用程序”正常尝试打开 Sonic Atlas 一次。</li>
+        <li>若被拦截，前往“系统设置 → 隐私与安全性”。</li>
+        <li>在“安全性”区域点“仍要打开（Open Anyway）”，再确认“打开”。</li>
+      </ol>
+      <p className="inline-notice">无需关闭 Gatekeeper，也不要使用终端命令移除隔离保护。受管理的 Mac 请联系 IT 管理员。</p>
+      {window.sonicAtlas ? (
+        <button className="secondary-button" type="button" onClick={openInstallHelp}>查看官方安装说明</button>
+      ) : (
+        <a className="secondary-button" href="https://cgc1965565186-lab.github.io/sonic-atlas/#macos-install" target="_blank" rel="noreferrer">查看官方安装说明</a>
+      )}
+    </div>
+  );
+}
+
 function PanelState({ icon, title, detail }: { icon: React.ReactNode; title: string; detail: string }) {
   return <div className="panel-state"><span>{icon}</span><strong>{title}</strong><p>{detail}</p></div>;
 }
 
-const titles = { search: ['SEARCH', '在网易云曲库中寻找'], library: ['LIBRARY', '当前账号的收藏坐标'], visual: ['VISUAL FIELD', '塑造声音地形'], account: ['ACCOUNT', '本机登录与安全'] } as const;
+const titles = { search: ['SEARCH', '在网易云曲库中寻找'], library: ['LIBRARY', '当前账号的收藏坐标'], visual: ['VISUAL FIELD', '塑造声音地形'], account: ['ACCOUNT', '本机登录与安全'], help: ['INSTALL HELP', 'macOS 首次安装与安全'] } as const;
 
 export function RightDrawer() {
   const drawer = useUiStore((state) => state.drawer);
@@ -320,6 +341,7 @@ export function RightDrawer() {
             {drawer === 'library' ? <LibraryPanel /> : null}
             {drawer === 'visual' ? <VisualPanel /> : null}
             {drawer === 'account' ? <AccountPanel /> : null}
+            {drawer === 'help' ? <InstallHelpPanel /> : null}
           </GlassSurface>
         </motion.aside>
       ) : null}

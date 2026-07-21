@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { app, BrowserWindow, globalShortcut, ipcMain, safeStorage, session } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, safeStorage, session, shell } from 'electron';
 import { createAuthStore, normalizeCookie } from './auth-store.mjs';
 import { startLocalServer } from '../server/index.mjs';
 
@@ -11,6 +11,7 @@ let localServer = null;
 let authStore = null;
 let loginWindow = null;
 let closingServer = false;
+const installHelpUrl = 'https://cgc1965565186-lab.github.io/sonic-atlas/#macos-install';
 
 app.enableSandbox();
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -148,6 +149,7 @@ async function openNeteaseLogin() {
 
 function registerIpc() {
   handle('runtime:get-config', async () => ({ apiBaseUrl: localServer.url, platform: process.platform }));
+  handle('app:open-install-help', () => shell.openExternal(installHelpUrl));
   handle('netease:get-auth-status', () => currentAuthStatus());
   handle('netease:open-login', () => openNeteaseLogin());
   handle('netease:save-manual-cookie', async (rawCookie) => {

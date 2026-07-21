@@ -210,6 +210,10 @@ input[type="range"]:disabled { opacity: .3; cursor: default; }
 .inline-notice, .error-notice { padding: 10px 12px; border-radius: 10px; font-size: 8px; line-height: 1.55; }
 .inline-notice { color: var(--muted); background: rgba(255,255,255,.03); }
 .error-notice { color: #e7b39f; background: rgba(172,82,58,.12); }
+.install-help-panel .panel-state { min-height: 178px; }
+.install-help-panel ol { display: grid; gap: 9px; margin: 0 0 14px; padding-left: 18px; color: rgba(236,233,227,.72); font-size: 9px; line-height: 1.6; }
+.install-help-panel .inline-notice { margin: 0 0 12px; }
+.install-help-panel .secondary-button { text-decoration: none; }
 
 .opening-overlay { position: absolute; z-index: 30; inset: 0; width: 100%; height: 100%; display: grid; place-items: center; border: 0; cursor: pointer; }
 .opening-mark { display: flex; flex-direction: column; align-items: center; }

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type DrawerId = 'search' | 'library' | 'visual' | 'account' | null;
+export type DrawerId = 'search' | 'library' | 'visual' | 'account' | 'help' | null;
 
 interface UiState {
   drawer: DrawerId;

@@ -61,6 +61,10 @@ npm run build:electron:win
 
 `build:electron:dir` 生成 macOS ARM64 目录包；`build:electron` 使用新版 macOS 的 `diskutil image create` 生成未签名 DMG。没有 Apple 签名与公证凭据时，系统可能显示安全提示。Windows NSIS 仅完成配置，仍需在 Windows 或 CI 中实机复验。
 
+### macOS 首次安装
+
+当前 DMG 是未签名测试构建。仅在确认安装包来自 [产品官网](https://cgc1965565186-lab.github.io/sonic-atlas/#macos-install) 或本项目的 GitHub Releases、且来源可信时继续：将应用拖入“应用程序”后先正常打开一次；若被拦截，前往“系统设置 → 隐私与安全性”，在“安全性”区域选择“仍要打开（Open Anyway）”。无需关闭 Gatekeeper，也不要使用终端命令移除隔离保护。受管理的 Mac 请联系 IT 管理员。
+
 ## 使用与快捷键
 
 - `Space`：播放/暂停。

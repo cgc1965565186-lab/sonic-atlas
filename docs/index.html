@@ -232,6 +232,19 @@
     .cta p { max-width: 52ch; color: var(--muted); }
     .cta-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
     .cta-legal { margin-top: 20px; color: var(--dim); font-size: 10px; letter-spacing: .04em; }
+    .install-help { padding: 30px 0 48px; }
+    .install-help-box { padding: clamp(26px, 4vw, 48px); border: 1px solid var(--line); border-radius: 30px; background: linear-gradient(135deg, rgba(var(--accent-rgb), .08), rgba(255,255,255,.025)); box-shadow: inset 0 1px rgba(255,255,255,.08); }
+    .install-help-head { display: grid; grid-template-columns: .8fr 1.2fr; gap: 8vw; align-items: end; }
+    .install-help h2 { margin: 16px 0 0; max-width: 680px; font-size: clamp(32px, 4.3vw, 60px); line-height: .98; letter-spacing: -.06em; font-weight: 540; }
+    .install-help-lead { max-width: 58ch; margin: 0; color: var(--muted); }
+    .install-warning { margin: 30px 0 22px; padding: 13px 15px; border-left: 2px solid var(--hot); background: rgba(0,0,0,.18); color: #d9d4ca; font-size: 13px; }
+    .install-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0; padding: 0; list-style: none; counter-reset: install; }
+    .install-steps li { position: relative; min-height: 148px; padding: 20px 18px 18px 54px; border: 1px solid rgba(255,255,255,.09); border-radius: 18px; background: rgba(7,8,7,.2); counter-increment: install; }
+    .install-steps li::before { content: "0" counter(install); position: absolute; top: 18px; left: 18px; color: var(--hot); font: 700 10px ui-monospace, monospace; letter-spacing: .08em; }
+    .install-steps strong { display: block; margin-bottom: 7px; font-size: 13px; }
+    .install-steps span { display: block; color: var(--muted); font-size: 12px; line-height: 1.65; }
+    .install-footnote { margin: 20px 0 0; color: var(--dim); font-size: 11px; }
+    .install-footnote a { color: var(--hot); text-decoration: underline; text-underline-offset: 3px; }
     .footer { display: grid; grid-template-columns: 1fr auto; gap: 30px; align-items: end; padding: 72px 0 32px; color: var(--dim); font-size: 11px; }
     .footer-brand { color: var(--text); font-size: clamp(28px, 4vw, 54px); font-weight: 520; letter-spacing: -.055em; line-height: 1; }
     .footer-links { display: flex; gap: 18px; }
@@ -253,7 +266,7 @@
       .hero { grid-template-columns: 1fr; padding-top: 150px; }
       .hero-copy { padding: 0 24px; }
       .hero-stage { width: calc(100% - 24px); margin-left: 24px; height: 620px; min-height: 0; }
-      .section-head, .palette-lab, .privacy { grid-template-columns: 1fr; }
+      .section-head, .palette-lab, .privacy, .install-help-head { grid-template-columns: 1fr; }
       .bento { grid-template-columns: 1fr; grid-template-rows: 560px 300px 300px; }
       .feature:first-child { grid-row: auto; }
       .palette-stage { order: -1; height: 580px; }
@@ -298,6 +311,7 @@
       .lyrics-stage .lyric-line:not(.active) { font-size: 13px; }
       .security-stack { min-height: 550px; }
       .security-card { width: 92%; }
+      .install-steps { grid-template-columns: 1fr; }
       .cta-box { min-height: 560px; padding: 36px 24px; border-radius: 30px; }
       .footer { grid-template-columns: 1fr; }
       .footer-links { flex-wrap: wrap; }
@@ -325,7 +339,7 @@
         <span>SONIC ATLAS</span>
       </a>
       <div class="nav-links">
-        <a href="#experience">声场</a><a href="#palette">配色</a><a href="#lyrics">歌词</a><a href="#privacy">隐私</a>
+        <a href="#experience">声场</a><a href="#palette">配色</a><a href="#lyrics">歌词</a><a href="#privacy">隐私</a><a href="#macos-install">安装</a>
       </div>
       <div class="nav-actions">
         <button class="icon-button" id="motionToggle" type="button" aria-label="暂停页面动画" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
@@ -342,7 +356,7 @@
         <p class="hero-lead">Sonic Atlas 将每一段低频、呼吸与瞬态，重构为可见、可漫游的声音地貌。不是频谱装饰，而是一座只属于这首歌的动态世界。</p>
         <div class="hero-actions">
           <a class="primary magnetic" href="./SonicAtlas-0.1.0-eight-themes-media-keys-arm64.dmg"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>下载 macOS ARM64 版</a>
-          <a class="secondary-button magnetic" href="#experience">进入声音世界<svg viewBox="0 0 24 24" fill="none"><path d="m8 5 7 7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="secondary-button magnetic" href="#macos-install">macOS 安装说明<svg viewBox="0 0 24 24" fill="none"><path d="m8 5 7 7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
         </div>
         <div class="hero-note"><span><i></i>个人学习与研究</span><span>Electron · React · R3F</span><span>未签名测试构建</span></div>
       </div>
@@ -425,6 +439,22 @@
           <article class="security-card"><header><span>02 / NETWORK</span><svg viewBox="0 0 24 24" fill="none"><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16M4 12a8 8 0 1 0 16 0 8 8 0 1 0-16 0" stroke="currentColor" stroke-width="1.7"/></svg></header><strong>只连接本机代理和白名单域名</strong><p>封面、歌词和媒体 Range 都经过本机服务统一校验。</p></article>
           <article class="security-card"><header><span>03 / RIGHTS</span><svg viewBox="0 0 24 24" fill="none"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></header><strong>尊重会员、版权与地区限制</strong><p>不解灰、不换源，只播放当前账号已有权限的内容。</p></article>
         </div>
+      </div>
+    </section>
+
+    <section class="install-help shell" id="macos-install" aria-labelledby="macos-install-title">
+      <div class="install-help-box reveal">
+        <div class="install-help-head">
+          <div><div class="eyebrow">First run · macOS</div><h2 id="macos-install-title">被 macOS 拦住？先确认来源，再仅为此应用放行。</h2></div>
+          <p class="install-help-lead">当前 DMG 是未签名测试构建，因此 Gatekeeper 可能阻止首次打开。安全提示不等于文件有害；同样，它也不该被忽略。</p>
+        </div>
+        <p class="install-warning">只在确认安装包来自本官网或 Sonic Atlas 的 GitHub Releases，且你信任其来源时继续。不要关闭 Gatekeeper，也不要使用终端命令移除隔离保护。</p>
+        <ol class="install-steps">
+          <li><strong>安装到“应用程序”</strong><span>打开 DMG，将 Sonic Atlas 拖入“应用程序”文件夹，然后推出该磁盘映像。</span></li>
+          <li><strong>先正常尝试打开一次</strong><span>从“应用程序”启动 Sonic Atlas；若看到无法验证或未识别开发者提示，关闭提示即可。</span></li>
+          <li><strong>仅为 Sonic Atlas 放行</strong><span>前往“系统设置 → 隐私与安全性”，在“安全性”区域点“仍要打开（Open Anyway）”，再确认“打开”。该按钮通常只在首次尝试后约一小时内出现。</span></li>
+        </ol>
+        <p class="install-footnote">受管理的 Mac 可能禁用此选项，请联系 IT 管理员；如果来源有任何不确定，请删除 DMG 并停止安装。<a href="https://support.apple.com/guide/mac-help/mh40617/mac" target="_blank" rel="noreferrer">查看 Apple 的官方安全说明</a></p>
       </div>
     </section>
 
