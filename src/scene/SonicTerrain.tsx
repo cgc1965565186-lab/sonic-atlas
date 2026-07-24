@@ -123,11 +123,13 @@ export const SonicTerrain = memo(function SonicTerrain() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const palette = useVisualStore((state) => state.runtimePalette);
   const gridSize = useVisualStore((state) => state.gridSize);
+  const quality = useVisualStore((state) => state.effectiveQuality);
   const bandGains = useVisualStore((state) => state.bandGains);
   const motionSpeed = useVisualStore((state) => state.motionSpeed);
   const glowIntensity = useVisualStore((state) => state.glowIntensity);
   const ripplesEnabled = useVisualStore((state) => state.ripplesEnabled);
-  const cells = useMemo(() => createCellMap(gridSize), [gridSize]);
+  const effectiveGridSize = Math.min(gridSize, quality === 'low' ? 48 : quality === 'medium' ? 64 : 80);
+  const cells = useMemo(() => createCellMap(effectiveGridSize), [effectiveGridSize]);
   const heights = useMemo(() => new Float32Array(cells.count), [cells.count]);
   const glowLevels = useMemo(() => new Float32Array(cells.count), [cells.count]);
   const glowAttribute = useMemo(() => {

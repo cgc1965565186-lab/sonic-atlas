@@ -10,12 +10,16 @@ import { SonicTerrain } from './SonicTerrain';
 
 export default function SonicScene({ reducedMotion }: { reducedMotion: boolean }) {
   const glow = useVisualStore((state) => state.glowIntensity);
+  const quality = useVisualStore((state) => state.effectiveQuality);
+  const dpr: [number, number] = quality === 'low' ? [0.8, 1]
+    : quality === 'medium' ? [1, 1.25]
+      : [1, 1.5];
   return (
     <div className="scene-shell" aria-hidden="true">
       <Canvas
-        dpr={[1, 1.5]}
+        dpr={dpr}
         camera={{ position: [0, 20, 38], fov: 44, near: 0.1, far: 140 }}
-        gl={{ antialias: true, powerPreference: 'high-performance', alpha: false }}
+        gl={{ antialias: true, powerPreference: 'high-performance', alpha: false, preserveDrawingBuffer: true }}
         onCreated={({ gl }) => {
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
@@ -29,10 +33,12 @@ export default function SonicScene({ reducedMotion }: { reducedMotion: boolean }
             <AirParticles />
           </group>
           <CameraRig reducedMotion={reducedMotion} />
-          <EffectComposer multisampling={0} enableNormalPass={false}>
-            <Bloom intensity={0.28 + glow / 145} luminanceThreshold={0.58} luminanceSmoothing={0.68} mipmapBlur />
-            <Vignette eskil={false} offset={0.18} darkness={0.66} />
-          </EffectComposer>
+          {quality === 'low' ? null : (
+            <EffectComposer multisampling={0} enableNormalPass={false}>
+              <Bloom intensity={0.28 + glow / 145} luminanceThreshold={0.58} luminanceSmoothing={0.68} mipmapBlur />
+              <Vignette eskil={false} offset={0.18} darkness={0.66} />
+            </EffectComposer>
+          )}
         </Suspense>
       </Canvas>
     </div>

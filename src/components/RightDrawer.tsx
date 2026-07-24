@@ -1,26 +1,56 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  ArrowsClockwise,
   ArrowLeft,
+  ArrowLineDown,
+  ArrowLineUp,
+  Bug,
   CaretRight,
   Check,
   CloudSlash,
+  Copy,
+  DownloadSimple,
+  FilmStrip,
+  FolderOpen,
+  Image,
+  ListDashes,
   MagnifyingGlass,
+  MusicNotes,
+  NotePencil,
   Play,
+  Plus,
+  Queue,
+  Repeat,
+  RepeatOnce,
   ShieldCheck,
+  Shuffle,
   SignOut,
   SpinnerGap,
+  Trash,
   UserCircle,
   X,
 } from '@phosphor-icons/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AUDIO_BANDS } from '../audio/AudioEngine';
+import {
+  exportScreenshot,
+  recordVisualClip,
+  type ExportAspect,
+  type WatermarkPosition,
+} from '../export/visualExport';
 import { CAMERA_PRESETS, GRID_SIZES, VISUAL_THEMES, type ThemeId } from '../config/visual';
 import { ApiError, neteaseApi } from '../netease/api';
 import type { PlaylistSummary, SongSummary } from '../netease/types';
 import { useAuthStore } from '../store/authStore';
+import { useLocalLibraryStore } from '../store/localLibraryStore';
 import { usePlayerStore } from '../store/playerStore';
 import { useUiStore } from '../store/uiStore';
-import { useVisualStore } from '../store/visualStore';
+import {
+  useVisualStore,
+  type LyricAlignment,
+  type LyricMotionMode,
+  type QualityMode,
+} from '../store/visualStore';
 import { GlassSurface } from './GlassSurface';
 
 function messageFrom(error: unknown) {
@@ -30,16 +60,24 @@ function messageFrom(error: unknown) {
 function TrackRow({ song, index, queue }: { song: SongSummary; index: number; queue: SongSummary[] }) {
   const currentTrack = usePlayerStore((state) => state.currentTrack);
   const playQueue = usePlayerStore((state) => state.playQueue);
-  const isCurrent = currentTrack?.id === song.id;
+  const addToQueue = usePlayerStore((state) => state.addToQueue);
+  const addNext = usePlayerStore((state) => state.addNext);
+  const isCurrent = currentTrack?.id === song.id && currentTrack.source === song.source;
   return (
-    <button className={`track-row ${isCurrent ? 'is-current' : ''}`} type="button" onClick={() => void playQueue(queue, index)}>
-      <span className="track-number">{isCurrent ? <Play weight="fill" /> : String(index + 1).padStart(2, '0')}</span>
-      <span className="track-copy">
-        <strong>{song.title}</strong>
-        <small>{song.artists.join(' / ')} · {song.album.name}</small>
+    <div className={`track-row ${isCurrent ? 'is-current' : ''} ${song.missing ? 'is-missing' : ''}`}>
+      <button className="track-main" type="button" disabled={song.missing} onClick={() => void playQueue(queue, index)}>
+        <span className="track-number">{isCurrent ? <Play weight="fill" /> : String(index + 1).padStart(2, '0')}</span>
+        <span className="track-copy">
+          <strong>{song.title}</strong>
+          <small>{song.missing ? '文件已丢失' : `${song.artists.join(' / ')} · ${song.album.name}`}</small>
+        </span>
+        <span className="track-duration">{Math.floor(song.durationMs / 60_000)}:{Math.floor((song.durationMs % 60_000) / 1_000).toString().padStart(2, '0')}</span>
+      </button>
+      <span className="track-actions">
+        <button type="button" onClick={() => addNext(song)} title="下一首播放" aria-label={`下一首播放 ${song.title}`}><ArrowLineUp /></button>
+        <button type="button" onClick={() => addToQueue([song])} title="加入队列" aria-label={`加入队列 ${song.title}`}><Plus /></button>
       </span>
-      <span className="track-duration">{Math.floor(song.durationMs / 60_000)}:{Math.floor((song.durationMs % 60_000) / 1_000).toString().padStart(2, '0')}</span>
-    </button>
+    </div>
   );
 }
 
@@ -116,8 +154,10 @@ function SearchPanel() {
 }
 
 function LibraryPanel() {
+  const [source, setSource] = useState<'local' | 'netease'>('local');
   const authenticated = useAuthStore((state) => state.authenticated);
   const openLogin = useAuthStore((state) => state.openLogin);
+  const local = useLocalLibraryStore();
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [selected, setSelected] = useState<PlaylistSummary | null>(null);
   const [songs, setSongs] = useState<SongSummary[]>([]);
@@ -125,7 +165,13 @@ function LibraryPanel() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authenticated) return;
+    if (local.tracks.length === 0 && !local.loading) void local.initialize();
+    // The store actions are stable; loading the library once is sufficient.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!authenticated || source !== 'netease') return;
     const controller = new AbortController();
     void Promise.resolve()
       .then(() => {
@@ -140,7 +186,7 @@ function LibraryPanel() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [authenticated]);
+  }, [authenticated, source]);
 
   const choosePlaylist = async (playlist: PlaylistSummary) => {
     setSelected(playlist);
@@ -157,9 +203,50 @@ function LibraryPanel() {
     }
   };
 
+  const sourceTabs = (
+    <div className="segmented-control source-tabs">
+      <button type="button" className={source === 'local' ? 'is-selected' : ''} onClick={() => setSource('local')}>本地音乐</button>
+      <button type="button" className={source === 'netease' ? 'is-selected' : ''} onClick={() => setSource('netease')}>网易云</button>
+    </div>
+  );
+
+  if (source === 'local') {
+    return (
+      <div className="drawer-panel local-library-panel">
+        {sourceTabs}
+        <div className="library-actions">
+          <button className="secondary-button" type="button" disabled={local.loading} onClick={() => void local.importFiles()}><MusicNotes />选择文件</button>
+          <button className="secondary-button" type="button" disabled={local.loading} onClick={() => void local.importFolder()}><FolderOpen />选择文件夹</button>
+          <button className="icon-button" type="button" disabled={local.loading} onClick={() => void local.rescan()} title="重新扫描" aria-label="重新扫描本地音乐"><ArrowsClockwise className={local.loading ? 'spin' : ''} /></button>
+        </div>
+        <div className="panel-meta"><span>LOCAL LIBRARY</span><span>{local.tracks.length} 首</span></div>
+        {local.error ? <PanelState icon={<CloudSlash />} title="资料库操作失败" detail={local.error} /> : null}
+        {local.lastImport && (local.lastImport.imported > 0 || local.lastImport.updated > 0 || local.lastImport.failures.length > 0) ? (
+          <p className="inline-notice">新增 {local.lastImport.imported} 首，更新 {local.lastImport.updated} 首，跳过 {local.lastImport.failures.length} 个文件。</p>
+        ) : null}
+        {!local.loading && local.tracks.length === 0 ? <PanelState icon={<FolderOpen />} title="这里还没有本地音乐" detail="选择文件或文件夹；应用只保存引用，不复制音频。" /> : null}
+        {local.loading ? <PanelState icon={<SpinnerGap className="spin" />} title="正在整理本地音乐" detail="读取标签、封面和歌词" /> : null}
+        {!local.loading && local.tracks.length > 0 ? (
+          <div className="track-list">
+            {local.tracks.map((song, index) => (
+              <div className="local-track-wrap" key={song.id}>
+                <TrackRow song={song} index={index} queue={local.tracks} />
+                {song.missing ? (
+                  <button className="text-action" type="button" onClick={() => void local.relocate(song.id)}>重新定位</button>
+                ) : null}
+                <button className="text-action danger" type="button" onClick={() => void local.remove(song.id)}>移除</button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   if (!authenticated) {
     return (
       <div className="drawer-panel">
+        {sourceTabs}
         <PanelState icon={<UserCircle />} title="登录后查看账号歌单" detail="只读取当前账号有权访问的内容" />
         <button className="primary-button" type="button" onClick={() => void openLogin()}>打开官方登录窗口</button>
       </div>
@@ -167,6 +254,7 @@ function LibraryPanel() {
   }
   return (
     <div className="drawer-panel">
+      {sourceTabs}
       {selected ? (
         <button className="back-button" type="button" onClick={() => { setSelected(null); setSongs([]); setError(null); }}>
           <ArrowLeft /> 返回歌单
@@ -192,6 +280,184 @@ function LibraryPanel() {
   );
 }
 
+const repeatOptions = [
+  { id: 'sequential', label: '顺序', icon: ListDashes },
+  { id: 'list', label: '循环', icon: Repeat },
+  { id: 'one', label: '单曲', icon: RepeatOnce },
+  { id: 'shuffle', label: '随机', icon: Shuffle },
+] as const;
+
+function QueuePanel() {
+  const player = usePlayerStore();
+  const [dragged, setDragged] = useState<number | null>(null);
+  return (
+    <div className="drawer-panel queue-panel">
+      <div className="repeat-options">
+        {repeatOptions.map(({ id, label, icon: Icon }) => (
+          <button key={id} type="button" className={player.repeatMode === id ? 'is-selected' : ''} onClick={() => player.setRepeatMode(id)}>
+            <Icon /><span>{label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="panel-meta"><span>PLAY QUEUE</span><span>{player.queue.length} 首</span></div>
+      {player.queue.length === 0 ? <PanelState icon={<Queue />} title="播放队列为空" detail="从本地资料库、搜索或网易云歌单加入音乐。" /> : null}
+      {player.queue.length > 0 ? (
+        <>
+          <div className="queue-list">
+            {player.queue.map((track, index) => {
+              const current = index === player.currentIndex;
+              return (
+                <div
+                  className={`queue-item ${current ? 'is-current' : ''}`}
+                  key={`${track.source}:${track.id}`}
+                  draggable
+                  onDragStart={() => setDragged(index)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => {
+                    if (dragged !== null) player.moveQueueItem(dragged, index);
+                    setDragged(null);
+                  }}
+                >
+                  <button className="queue-play" type="button" onClick={() => void player.playTrack(index)}>
+                    <span>{current ? <Play weight="fill" /> : String(index + 1).padStart(2, '0')}</span>
+                    <span><strong>{track.title}</strong><small>{track.source === 'local' ? '本地' : '网易云'} · {track.artists.join(' / ')}</small></span>
+                  </button>
+                  <div className="queue-item-actions">
+                    <button type="button" disabled={index === 0} onClick={() => player.moveQueueItem(index, index - 1)} aria-label="上移"><ArrowLineUp /></button>
+                    <button type="button" disabled={index === player.queue.length - 1} onClick={() => player.moveQueueItem(index, index + 1)} aria-label="下移"><ArrowLineDown /></button>
+                    <button type="button" onClick={() => void player.removeQueueItem(index)} aria-label="移除"><Trash /></button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <button className="secondary-button danger-button" type="button" onClick={player.clearQueue}><Trash />清空队列</button>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function ExportPanel() {
+  const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const playing = usePlayerStore((state) => state.playing);
+  const [aspect, setAspect] = useState<ExportAspect>('16:9');
+  const [customText, setCustomText] = useState('');
+  const [position, setPosition] = useState<WatermarkPosition>('bottom-right');
+  const [opacity, setOpacity] = useState(68);
+  const [duration, setDuration] = useState<5 | 10 | 15>(10);
+  const [includeAudio, setIncludeAudio] = useState(true);
+  const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [message, setMessage] = useState('');
+  const options = { aspect, customText, watermarkPosition: position, watermarkOpacity: opacity / 100 };
+
+  const runScreenshot = async () => {
+    setBusy(true);
+    setMessage('');
+    try {
+      await exportScreenshot(options);
+      setMessage('PNG 截图已保存。');
+    } catch (error) {
+      setMessage(messageFrom(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const runVideo = async () => {
+    if (!rightsConfirmed) return;
+    setBusy(true);
+    setProgress(0);
+    setMessage('');
+    try {
+      const format = await recordVisualClip(options, duration, includeAudio, setProgress);
+      setMessage(`${duration} 秒 ${format.toUpperCase()} 短片已保存。`);
+    } catch (error) {
+      setMessage(messageFrom(error));
+    } finally {
+      setBusy(false);
+      setProgress(0);
+    }
+  };
+
+  return (
+    <div className="drawer-panel export-panel">
+      <section className="setting-section">
+        <div className="section-heading"><span>FRAME</span><small>截图与短片使用相同画幅</small></div>
+        <div className="segmented-control export-aspects">
+          {(['window', '16:9', '9:16', '1:1'] as ExportAspect[]).map((value) => (
+            <button key={value} type="button" className={aspect === value ? 'is-selected' : ''} onClick={() => setAspect(value)}>{value === 'window' ? '窗口' : value}</button>
+          ))}
+        </div>
+      </section>
+      <section className="setting-section">
+        <div className="section-heading"><span>WATERMARK</span><small>品牌标识始终保留</small></div>
+        <label className="field-row"><span>附加文字</span><input maxLength={40} value={customText} onChange={(event) => setCustomText(event.currentTarget.value)} placeholder="昵称或一句短句" /></label>
+        <label className="field-row"><span>位置</span><select value={position} onChange={(event) => setPosition(event.currentTarget.value as WatermarkPosition)}><option value="top-left">左上</option><option value="top-right">右上</option><option value="bottom-left">左下</option><option value="bottom-right">右下</option></select></label>
+        <SliderRow label="水印透明度" value={opacity} onChange={setOpacity} />
+      </section>
+      <button className="secondary-button" type="button" disabled={busy} onClick={() => void runScreenshot()}><Image />导出 PNG 截图</button>
+      <section className="setting-section">
+        <div className="section-heading"><span>VISUAL CLIP</span><small>实时录制，最长 15 秒</small></div>
+        <div className="segmented-control">
+          {([5, 10, 15] as const).map((value) => <button key={value} type="button" className={duration === value ? 'is-selected' : ''} onClick={() => setDuration(value)}>{value} 秒</button>)}
+        </div>
+        <label className="switch-row"><span><strong>包含当前音频</strong><small>{playing ? '录制正在播放的片段' : '当前未播放，导出将没有声音'}</small></span><input type="checkbox" checked={includeAudio} onChange={(event) => setIncludeAudio(event.currentTarget.checked)} /><i /></label>
+        <label className="rights-confirm"><input type="checkbox" checked={rightsConfirmed} onChange={(event) => setRightsConfirmed(event.currentTarget.checked)} /><span>我确认有权使用当前片段，并理解导出仅限 15 秒以内。</span></label>
+        <button className="primary-button" type="button" disabled={busy || !currentTrack || !rightsConfirmed} onClick={() => void runVideo()}><FilmStrip />{busy && progress > 0 ? `录制中 ${Math.round(progress * 100)}%` : '录制视觉短片'}</button>
+      </section>
+      {message ? <p className="inline-notice" aria-live="polite">{message}</p> : null}
+    </div>
+  );
+}
+
+function DiagnosticsPanel() {
+  const [report, setReport] = useState<Record<string, unknown> | null>(null);
+  const [message, setMessage] = useState('');
+  const quality = useVisualStore((state) => state.effectiveQuality);
+  const audioStatus = usePlayerStore((state) => `${state.mode}:${state.playing ? 'playing' : 'paused'}`);
+  const authenticated = useAuthStore((state) => state.authenticated);
+  const status = { quality, audioStatus, authenticated };
+  const refresh = async () => {
+    if (!window.sonicAtlas) {
+      setMessage('诊断报告仅在桌面版中可用。');
+      return;
+    }
+    setReport(await window.sonicAtlas.getDiagnostics(status) as unknown as Record<string, unknown>);
+  };
+  useEffect(() => {
+    let cancelled = false;
+    if (!window.sonicAtlas) return;
+    void window.sonicAtlas.getDiagnostics(status).then((value) => {
+      if (!cancelled) setReport(value as unknown as Record<string, unknown>);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // The panel captures a single opening snapshot; users can explicitly refresh it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const copyReport = async () => {
+    if (!report) return;
+    await navigator.clipboard.writeText(JSON.stringify(report, null, 2));
+    setMessage('脱敏诊断摘要已复制。');
+  };
+  return (
+    <div className="drawer-panel diagnostics-panel">
+      <PanelState icon={<Bug />} title="诊断与反馈" detail="报告不会包含 Cookie、完整网络地址或本地文件路径。" />
+      <div className="diagnostic-actions">
+        <button className="secondary-button" type="button" onClick={() => void refresh()}><ArrowsClockwise />刷新</button>
+        <button className="secondary-button" type="button" disabled={!report} onClick={() => void copyReport()}><Copy />复制摘要</button>
+        <button className="secondary-button" type="button" onClick={() => void window.sonicAtlas?.exportDiagnostics(status)}><DownloadSimple />导出报告</button>
+      </div>
+      {report ? <pre className="diagnostic-preview">{JSON.stringify(report, null, 2)}</pre> : <PanelState icon={<SpinnerGap className="spin" />} title="正在准备报告" detail="只汇总最近 200 条脱敏事件" />}
+      <button className="primary-button" type="button" onClick={() => void window.sonicAtlas?.openFeedback(status)}><NotePencil />复制报告并反馈问题</button>
+      {message ? <p className="inline-notice" aria-live="polite">{message}</p> : null}
+    </div>
+  );
+}
+
 function SliderRow({ label, hint, value, onChange }: { label: string; hint?: string; value: number; onChange: (value: number) => void }) {
   return (
     <label className="slider-row">
@@ -213,6 +479,42 @@ function VisualPanel() {
         : '预设配色已锁定';
   return (
     <div className="drawer-panel visual-panel">
+      <section className="setting-section">
+        <div className="section-heading"><span>QUALITY</span><small>当前实际画质：{visual.effectiveQuality === 'high' ? '高' : visual.effectiveQuality === 'medium' ? '中' : '低'}</small></div>
+        <div className="segmented-control">
+          {([
+            ['auto', '自动'],
+            ['low', '低'],
+            ['medium', '中'],
+            ['high', '高'],
+          ] as Array<[QualityMode, string]>).map(([id, label]) => (
+            <button key={id} type="button" className={visual.qualityMode === id ? 'is-selected' : ''} onClick={() => visual.setQualityMode(id)}>{label}</button>
+          ))}
+        </div>
+        <p className="setting-copy">自动模式在持续低帧率 10 秒后降档，稳定 20 秒后再升档。</p>
+      </section>
+      <section className="setting-section">
+        <div className="section-heading"><span>LYRICS</span><small>减少动态效果时自动使用静态过渡</small></div>
+        <div className="motion-options">
+          {([
+            ['cinematic', '电影淡入'],
+            ['breathe', '呼吸聚焦'],
+            ['glow', '逐字流光'],
+            ['depth', '景深漂移'],
+            ['static', '静态'],
+          ] as Array<[LyricMotionMode, string]>).map(([id, label]) => (
+            <button key={id} type="button" className={visual.lyricMotion === id ? 'is-selected' : ''} onClick={() => visual.setLyricMotion(id)}>{label}</button>
+          ))}
+        </div>
+        <div className="segmented-control">
+          {([['left', '左对齐'], ['center', '居中']] as Array<[LyricAlignment, string]>).map(([id, label]) => (
+            <button key={id} type="button" className={visual.lyricAlignment === id ? 'is-selected' : ''} onClick={() => visual.setLyricAlignment(id)}>{label}</button>
+          ))}
+        </div>
+        <SliderRow label="歌词字号" value={visual.lyricSize} onChange={visual.setLyricSize} />
+        <SliderRow label="前后行透明度" value={visual.lyricContextOpacity} onChange={visual.setLyricContextOpacity} />
+        <SliderRow label="动效强度" value={visual.lyricMotionIntensity} onChange={visual.setLyricMotionIntensity} />
+      </section>
       <section className="setting-section">
         <div className="section-heading"><span>PALETTE</span><small>{paletteLabel}</small></div>
         <label className="switch-row palette-auto-row">
@@ -304,6 +606,7 @@ function AccountPanel() {
 
 function InstallHelpPanel() {
   const openInstallHelp = () => void window.sonicAtlas?.openInstallHelp();
+  const restartIntro = useUiStore((state) => state.restartIntro);
   return (
     <div className="drawer-panel install-help-panel">
       <PanelState icon={<ShieldCheck />} title="macOS 首次安装帮助" detail="Sonic Atlas 是未签名测试构建；请只在确认下载来源可信时为它创建例外。" />
@@ -318,6 +621,7 @@ function InstallHelpPanel() {
       ) : (
         <a className="secondary-button" href="https://cgc1965565186-lab.github.io/sonic-atlas/#macos-install" target="_blank" rel="noreferrer">查看官方安装说明</a>
       )}
+      <button className="secondary-button" type="button" onClick={restartIntro}><ArrowsClockwise />重新打开首次启动向导</button>
     </div>
   );
 }
@@ -326,7 +630,16 @@ function PanelState({ icon, title, detail }: { icon: React.ReactNode; title: str
   return <div className="panel-state"><span>{icon}</span><strong>{title}</strong><p>{detail}</p></div>;
 }
 
-const titles = { search: ['SEARCH', '在网易云曲库中寻找'], library: ['LIBRARY', '当前账号的收藏坐标'], visual: ['VISUAL FIELD', '塑造声音地形'], account: ['ACCOUNT', '本机登录与安全'], help: ['INSTALL HELP', 'macOS 首次安装与安全'] } as const;
+const titles = {
+  search: ['SEARCH', '在网易云曲库中寻找'],
+  library: ['LIBRARY', '网易云与本地音乐'],
+  queue: ['QUEUE', '安排接下来播放的声音'],
+  visual: ['VISUAL FIELD', '塑造声音地形与歌词'],
+  export: ['EXPORT', '带水印的截图与短片'],
+  diagnostics: ['DIAGNOSTICS', '脱敏状态与反馈'],
+  account: ['ACCOUNT', '本机登录与安全'],
+  help: ['INSTALL HELP', 'macOS 首次安装与安全'],
+} as const;
 
 export function RightDrawer() {
   const drawer = useUiStore((state) => state.drawer);
@@ -339,7 +652,10 @@ export function RightDrawer() {
             <header><div><span>{titles[drawer][0]}</span><p>{titles[drawer][1]}</p></div><button type="button" className="icon-button" onClick={closeDrawer} aria-label="关闭面板"><X /></button></header>
             {drawer === 'search' ? <SearchPanel /> : null}
             {drawer === 'library' ? <LibraryPanel /> : null}
+            {drawer === 'queue' ? <QueuePanel /> : null}
             {drawer === 'visual' ? <VisualPanel /> : null}
+            {drawer === 'export' ? <ExportPanel /> : null}
+            {drawer === 'diagnostics' ? <DiagnosticsPanel /> : null}
             {drawer === 'account' ? <AccountPanel /> : null}
             {drawer === 'help' ? <InstallHelpPanel /> : null}
           </GlassSurface>

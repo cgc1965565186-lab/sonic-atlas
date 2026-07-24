@@ -9,6 +9,11 @@ import {
   type ThemeId,
 } from '../config/visual';
 
+export type QualityMode = 'auto' | 'low' | 'medium' | 'high';
+export type EffectiveQuality = Exclude<QualityMode, 'auto'>;
+export type LyricMotionMode = 'cinematic' | 'breathe' | 'glow' | 'depth' | 'static';
+export type LyricAlignment = 'left' | 'center';
+
 export interface VisualState {
   themeId: ThemeId;
   paletteMode: PaletteMode;
@@ -20,6 +25,13 @@ export interface VisualState {
   glowIntensity: number;
   ripplesEnabled: boolean;
   cameraPreset: CameraPreset;
+  qualityMode: QualityMode;
+  effectiveQuality: EffectiveQuality;
+  lyricMotion: LyricMotionMode;
+  lyricAlignment: LyricAlignment;
+  lyricSize: number;
+  lyricContextOpacity: number;
+  lyricMotionIntensity: number;
   setTheme: (themeId: ThemeId) => void;
   setPaletteMode: (mode: PaletteMode) => void;
   applyCoverPalette: (palette: ScenePalette) => void;
@@ -31,6 +43,13 @@ export interface VisualState {
   setGlowIntensity: (value: number) => void;
   setRipplesEnabled: (value: boolean) => void;
   setCameraPreset: (preset: CameraPreset) => void;
+  setQualityMode: (mode: QualityMode) => void;
+  setEffectiveQuality: (quality: EffectiveQuality) => void;
+  setLyricMotion: (mode: LyricMotionMode) => void;
+  setLyricAlignment: (alignment: LyricAlignment) => void;
+  setLyricSize: (value: number) => void;
+  setLyricContextOpacity: (value: number) => void;
+  setLyricMotionIntensity: (value: number) => void;
 }
 
 export const useVisualStore = create<VisualState>()(
@@ -46,6 +65,13 @@ export const useVisualStore = create<VisualState>()(
       glowIntensity: 58,
       ripplesEnabled: true,
       cameraPreset: 'orbit',
+      qualityMode: 'auto',
+      effectiveQuality: 'high',
+      lyricMotion: 'depth',
+      lyricAlignment: 'left',
+      lyricSize: 58,
+      lyricContextOpacity: 42,
+      lyricMotionIntensity: 70,
       setTheme: (themeId) =>
         set({
           themeId,
@@ -79,10 +105,24 @@ export const useVisualStore = create<VisualState>()(
       setGlowIntensity: (glowIntensity) => set({ glowIntensity: Math.max(0, Math.min(100, glowIntensity)) }),
       setRipplesEnabled: (ripplesEnabled) => set({ ripplesEnabled }),
       setCameraPreset: (cameraPreset) => set({ cameraPreset }),
+      setQualityMode: (qualityMode) =>
+        set({
+          qualityMode,
+          ...(qualityMode === 'auto' ? {} : { effectiveQuality: qualityMode }),
+        }),
+      setEffectiveQuality: (effectiveQuality) => set((state) =>
+        state.qualityMode === 'auto' ? { effectiveQuality } : state),
+      setLyricMotion: (lyricMotion) => set({ lyricMotion }),
+      setLyricAlignment: (lyricAlignment) => set({ lyricAlignment }),
+      setLyricSize: (lyricSize) => set({ lyricSize: Math.max(35, Math.min(100, lyricSize)) }),
+      setLyricContextOpacity: (lyricContextOpacity) =>
+        set({ lyricContextOpacity: Math.max(10, Math.min(80, lyricContextOpacity)) }),
+      setLyricMotionIntensity: (lyricMotionIntensity) =>
+        set({ lyricMotionIntensity: Math.max(0, Math.min(100, lyricMotionIntensity)) }),
     }),
     {
       name: 'sonic-atlas-visual-v1',
-      version: 2,
+      version: 3,
       migrate: (persisted) => {
         const previous = (persisted ?? {}) as Partial<VisualState>;
         return {
@@ -94,6 +134,13 @@ export const useVisualStore = create<VisualState>()(
           glowIntensity: previous.glowIntensity ?? 58,
           ripplesEnabled: previous.ripplesEnabled ?? true,
           cameraPreset: previous.cameraPreset ?? 'orbit',
+          qualityMode: previous.qualityMode ?? 'auto',
+          effectiveQuality: previous.effectiveQuality ?? 'high',
+          lyricMotion: previous.lyricMotion ?? 'depth',
+          lyricAlignment: previous.lyricAlignment ?? 'left',
+          lyricSize: previous.lyricSize ?? 58,
+          lyricContextOpacity: previous.lyricContextOpacity ?? 42,
+          lyricMotionIntensity: previous.lyricMotionIntensity ?? 70,
         };
       },
       partialize: (state) => ({
@@ -105,6 +152,13 @@ export const useVisualStore = create<VisualState>()(
         glowIntensity: state.glowIntensity,
         ripplesEnabled: state.ripplesEnabled,
         cameraPreset: state.cameraPreset,
+        qualityMode: state.qualityMode,
+        effectiveQuality: state.effectiveQuality,
+        lyricMotion: state.lyricMotion,
+        lyricAlignment: state.lyricAlignment,
+        lyricSize: state.lyricSize,
+        lyricContextOpacity: state.lyricContextOpacity,
+        lyricMotionIntensity: state.lyricMotionIntensity,
       }),
     },
   ),

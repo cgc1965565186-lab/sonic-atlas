@@ -1,7 +1,10 @@
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { app, BrowserWindow, globalShortcut, ipcMain, safeStorage, session, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, safeStorage, session, shell } from 'electron';
 import { createAuthStore, normalizeCookie } from './auth-store.mjs';
+import { createDiagnostics, isExpectedCancellation } from './diagnostics.mjs';
+import { createLocalLibrary, SUPPORTED_AUDIO_EXTENSIONS } from './local-library.mjs';
 import { startLocalServer } from '../server/index.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -9,9 +12,12 @@ const isDevelopment = Boolean(process.env.VITE_DEV_SERVER_URL);
 let mainWindow = null;
 let localServer = null;
 let authStore = null;
+let localLibrary = null;
+let diagnostics = null;
 let loginWindow = null;
 let closingServer = false;
 const installHelpUrl = 'https://cgc1965565186-lab.github.io/sonic-atlas/#macos-install';
+const feedbackUrl = 'https://github.com/cgc1965565186-lab/sonic-atlas/issues/new';
 
 app.enableSandbox();
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -34,6 +40,22 @@ function handle(channel, handler) {
 
 function notifyAuth(status) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('netease:auth-changed', status);
+}
+
+function diagnosticStatus(status = {}) {
+  return diagnostics.report({
+    localLibrary,
+    audioStatus: status.audioStatus,
+    quality: status.quality,
+    authenticated: status.authenticated,
+  });
+}
+
+function audioFilters() {
+  return [{
+    name: '音频文件',
+    extensions: [...SUPPORTED_AUDIO_EXTENSIONS].map((extension) => extension.slice(1)),
+  }];
 }
 
 function sendMediaCommand(command) {
@@ -148,8 +170,80 @@ async function openNeteaseLogin() {
 }
 
 function registerIpc() {
-  handle('runtime:get-config', async () => ({ apiBaseUrl: localServer.url, platform: process.platform }));
+  handle('runtime:get-config', async () => ({
+    apiBaseUrl: localServer.url,
+    platform: process.platform,
+    version: app.getVersion(),
+    fullscreen: Boolean(mainWindow?.isFullScreen()),
+  }));
   handle('app:open-install-help', () => shell.openExternal(installHelpUrl));
+  handle('local:list', () => localLibrary.list());
+  handle('local:import-files', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: '导入本地音乐',
+      properties: ['openFile', 'multiSelections'],
+      filters: audioFilters(),
+    });
+    if (result.canceled) return { tracks: localLibrary.list(), imported: 0, updated: 0, failures: [] };
+    return localLibrary.importFiles(result.filePaths);
+  });
+  handle('local:import-folder', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: '选择音乐文件夹',
+      properties: ['openDirectory', 'multiSelections'],
+    });
+    if (result.canceled) return { tracks: localLibrary.list(), imported: 0, updated: 0, failures: [] };
+    return localLibrary.importFolders(result.filePaths);
+  });
+  handle('local:rescan', () => localLibrary.rescan());
+  handle('local:relocate', async (id) => {
+    if (!/^local-[a-f0-9]{24}$/.test(id)) throw new Error('无效的本地曲目');
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: '重新定位音乐文件',
+      properties: ['openFile'],
+      filters: audioFilters(),
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    return localLibrary.relocate(id, result.filePaths[0]);
+  });
+  handle('local:remove', async (id) => {
+    if (!/^local-[a-f0-9]{24}$/.test(id)) throw new Error('无效的本地曲目');
+    return localLibrary.remove(id);
+  });
+  handle('diagnostics:get', (status) => diagnosticStatus(status));
+  handle('diagnostics:export', async (status) => {
+    const report = diagnosticStatus(status);
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: '导出 Sonic Atlas 诊断报告',
+      defaultPath: `Sonic-Atlas-Diagnostics-${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (result.canceled || !result.filePath) return false;
+    await fs.writeFile(result.filePath, `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
+    return true;
+  });
+  handle('diagnostics:feedback', async (status) => {
+    clipboard.writeText(JSON.stringify(diagnosticStatus(status), null, 2));
+    await shell.openExternal(feedbackUrl);
+    return true;
+  });
+  handle('export:save', async (payload) => {
+    const format = payload?.format === 'png' ? 'png'
+      : payload?.format === 'mp4' ? 'mp4'
+        : payload?.format === 'webm' ? 'webm'
+          : '';
+    if (!format || typeof payload?.base64 !== 'string') throw new Error('导出内容无效');
+    const bytes = Buffer.from(payload.base64, 'base64');
+    if (bytes.length === 0 || bytes.length > 96 * 1024 * 1024) throw new Error('导出内容大小无效');
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: '保存 Sonic Atlas 视觉作品',
+      defaultPath: `Sonic-Atlas-${Date.now()}.${format}`,
+      filters: [{ name: format.toUpperCase(), extensions: [format] }],
+    });
+    if (result.canceled || !result.filePath) return false;
+    await fs.writeFile(result.filePath, bytes, { mode: 0o600 });
+    return true;
+  });
   handle('netease:get-auth-status', () => currentAuthStatus());
   handle('netease:open-login', () => openNeteaseLogin());
   handle('netease:save-manual-cookie', async (rawCookie) => {
@@ -196,6 +290,9 @@ function createMainWindow() {
     if (new URL(url).origin !== allowed) event.preventDefault();
   });
   mainWindow.once('ready-to-show', () => mainWindow?.show());
+  const notifyFullscreen = () => mainWindow?.webContents.send('app:fullscreen-changed', Boolean(mainWindow?.isFullScreen()));
+  mainWindow.on('enter-full-screen', notifyFullscreen);
+  mainWindow.on('leave-full-screen', notifyFullscreen);
   mainWindow.on('closed', () => { mainWindow = null; });
   void mainWindow.loadURL(isDevelopment ? process.env.VITE_DEV_SERVER_URL : localServer.url).catch(() => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
@@ -210,6 +307,13 @@ app.on('second-instance', () => {
 });
 
 void app.whenReady().then(async () => {
+  diagnostics = createDiagnostics({ userDataPath: app.getPath('userData'), appVersion: app.getVersion() });
+  await diagnostics.load();
+  localLibrary = createLocalLibrary({
+    userDataPath: app.getPath('userData'),
+    log: (level, event, details) => diagnostics.record(level, event, details),
+  });
+  await localLibrary.load();
   authStore = createAuthStore({ safeStorage, userDataPath: app.getPath('userData') });
   await authStore.load();
   localServer = await startLocalServer({
@@ -217,6 +321,8 @@ void app.whenReady().then(async () => {
     dev: isDevelopment,
     getCookie: authStore.getCookie,
     getPersistence: authStore.getPersistence,
+    localLibrary,
+    log: (level, event, details) => diagnostics.record(level, event, details),
   });
   registerIpc();
   createMainWindow();
@@ -225,6 +331,19 @@ void app.whenReady().then(async () => {
   const message = error instanceof Error ? error.message : 'unknown startup error';
   console.error(`Sonic Atlas failed to start: ${message}`);
   app.quit();
+});
+
+process.on('uncaughtException', (error) => {
+  diagnostics?.record(isExpectedCancellation(error) ? 'warn' : 'error', 'uncaught-exception', error);
+  if (isExpectedCancellation(error)) return;
+  if (app.isReady()) dialog.showErrorBox('Sonic Atlas 遇到问题', '应用已保存脱敏诊断信息，请重新启动。');
+  app.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  diagnostics?.record(isExpectedCancellation(reason) ? 'warn' : 'error', 'unhandled-rejection', reason);
+  if (isExpectedCancellation(reason)) return;
+  console.error('Unhandled rejection in Sonic Atlas:', reason);
 });
 
 app.on('window-all-closed', () => app.quit());

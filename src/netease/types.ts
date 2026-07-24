@@ -10,15 +10,22 @@ export interface AuthStatus {
   user: UserProfile | null;
 }
 
-export interface SongSummary {
+export type TrackSource = 'netease' | 'local';
+
+export interface Track {
   id: string;
+  source: TrackSource;
   title: string;
   artists: string[];
   album: { id: string; name: string };
   durationMs: number;
   coverUrl: string;
   availability: 'unknown' | 'available' | 'preview' | 'unavailable';
+  missing?: boolean;
 }
+
+export type SongSummary = Track;
+export type LocalTrack = Track & { source: 'local' };
 
 export interface PlaylistSummary {
   id: string;

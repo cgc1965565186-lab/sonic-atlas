@@ -11,6 +11,7 @@ describe('Netease DTO normalization', () => {
     });
     expect(song).toEqual({
       id: '42',
+      source: 'netease',
       title: 'Night Index',
       artists: ['Atlas'],
       album: { id: '7', name: 'Field Notes' },

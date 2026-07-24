@@ -10,6 +10,12 @@ export function LyricsStage({ immersive, reducedMotion }: { immersive: boolean; 
   const activeIndex = usePlayerStore((state) => state.activeLyricIndex);
   const currentTrack = usePlayerStore((state) => state.currentTrack);
   const palette = useVisualStore((state) => state.runtimePalette);
+  const motionMode = useVisualStore((state) => state.lyricMotion);
+  const alignment = useVisualStore((state) => state.lyricAlignment);
+  const lyricSize = useVisualStore((state) => state.lyricSize);
+  const contextOpacity = useVisualStore((state) => state.lyricContextOpacity);
+  const motionIntensity = useVisualStore((state) => state.lyricMotionIntensity);
+  const staticMotion = reducedMotion || motionMode === 'static';
   const visibleLines = useMemo(() => lyricWindow(lyrics, activeIndex), [activeIndex, lyrics]);
   const activeLine = activeIndex >= 0 ? lyrics[activeIndex] : undefined;
   const graphemes = useMemo(() => segmentGraphemes(activeLine?.text ?? ''), [activeLine?.text]);
@@ -18,19 +24,26 @@ export function LyricsStage({ immersive, reducedMotion }: { immersive: boolean; 
   return (
     <motion.section
       className={`lyrics-stage ${immersive ? 'is-immersive' : ''}`}
+      data-motion={staticMotion ? 'static' : motionMode}
       layout
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: reducedMotion ? 0.2 : 0.42 }}
       aria-label="同步歌词"
+      style={{
+        '--lyric-size': lyricSize,
+        '--lyric-context-opacity': contextOpacity / 100,
+        '--lyric-motion-intensity': motionIntensity / 100,
+        textAlign: alignment,
+      } as React.CSSProperties}
     >
       <LyricParticles
         lineKey={activeLine?.timeMs ?? -1}
         text={activeLine?.text ?? ''}
         secondary={palette.secondary}
         hot={palette.hot}
-        reducedMotion={reducedMotion}
+        reducedMotion={staticMotion}
       />
       <div className="lyrics-depth-stack" aria-hidden="true">
         {visibleLines.map(({ line, offset }) => {
@@ -42,17 +55,21 @@ export function LyricsStage({ immersive, reducedMotion }: { immersive: boolean; 
               key={line.timeMs}
               initial={{ opacity: 0, y: offset > 0 ? 16 : -16, filter: 'blur(8px)' }}
               animate={{
-                opacity: isActive ? 1 : Math.abs(offset) === 1 ? 0.42 : 0.2,
+                opacity: isActive ? 1 : (Math.abs(offset) === 1 ? 1 : 0.48) * (contextOpacity / 100),
                 y: 0,
-                scale: isActive ? 1 : Math.abs(offset) === 1 ? 0.91 : 0.84,
-                filter: isActive ? 'blur(0px)' : `blur(${Math.abs(offset) * 1.8}px)`,
+                scale: isActive
+                  ? motionMode === 'breathe' && !staticMotion ? 1.025 : 1
+                  : Math.abs(offset) === 1 ? 0.91 : 0.84,
+                filter: staticMotion || motionMode === 'cinematic' || motionMode === 'breathe'
+                  ? 'blur(0px)'
+                  : isActive ? 'blur(0px)' : `blur(${Math.abs(offset) * 1.8 * motionIntensity / 100}px)`,
               }}
-              transition={{ duration: reducedMotion ? 0.2 : 0.46, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: staticMotion ? 0.12 : motionMode === 'cinematic' ? 0.72 : 0.46, ease: [0.22, 1, 0.36, 1] }}
             >
               <AnimatePresence mode="popLayout" initial={false}>
                 {isActive ? (
                   <motion.p className="lyric-current" key={line.timeMs}>
-                    {reducedMotion
+                    {staticMotion || motionMode === 'cinematic' || motionMode === 'breathe'
                       ? line.text
                       : graphemes.map((grapheme, index) => {
                           const drift = characterDrift(line.text, index);

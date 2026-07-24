@@ -46,24 +46,53 @@ export async function pipeWebBody(body, destination) {
   await pipeline(Readable.fromWeb(body), destination);
 }
 
+export async function fetchWithHeaderTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new DOMException('等待上游响应超时', 'TimeoutError')), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    return { response, controller };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function pipeUpstream(upstream, controller, res) {
+  if (!upstream.body) {
+    res.end();
+    return;
+  }
+  const abortOnClose = () => {
+    if (!res.writableFinished) controller.abort(new DOMException('客户端已停止播放', 'AbortError'));
+  };
+  res.once('close', abortOnClose);
+  let completed = false;
+  try {
+    await pipeWebBody(upstream.body, res);
+    completed = true;
+  } catch (error) {
+    const expectedAbort = controller.signal.aborted
+      && (error?.name === 'AbortError' || error?.name === 'TimeoutError' || error?.code === 'ERR_STREAM_PREMATURE_CLOSE');
+    if (!expectedAbort) throw error;
+  } finally {
+    res.off('close', abortOnClose);
+    if (!completed && !controller.signal.aborted) controller.abort(new DOMException('响应已停止', 'AbortError'));
+  }
+}
+
 export async function proxyImage(source, res) {
   if (!isAllowedCoverUrl(source)) {
     res.status(400).json({ code: 'INVALID_IMAGE_SOURCE', message: '封面地址不在允许列表中', retryable: false });
     return;
   }
-  const upstream = await fetch(source, {
-    headers: { Referer: 'https://music.163.com/', 'User-Agent': 'Mozilla/5.0 SonicAtlas/0.1' },
-    signal: AbortSignal.timeout(12_000),
-  });
+  const { response: upstream, controller } = await fetchWithHeaderTimeout(source, {
+    headers: { Referer: 'https://music.163.com/', 'User-Agent': 'Mozilla/5.0 SonicAtlas/0.2' },
+  }, 12_000);
   res.status(upstream.status);
   copyHeader(upstream, res, 'content-type');
   copyHeader(upstream, res, 'content-length');
   res.setHeader('Cache-Control', 'private, max-age=86400');
-  if (!upstream.body) {
-    res.end();
-    return;
-  }
-  await pipeWebBody(upstream.body, res);
+  await pipeUpstream(upstream, controller, res);
 }
 
 export async function proxyAudio(url, range, res) {
@@ -73,20 +102,20 @@ export async function proxyAudio(url, range, res) {
   }
   const headers = {
     Referer: 'https://music.163.com/',
-    'User-Agent': 'Mozilla/5.0 SonicAtlas/0.1',
+    'User-Agent': 'Mozilla/5.0 SonicAtlas/0.2',
   };
   if (range) headers.Range = range;
 
-  const upstream = await fetch(url, { headers, redirect: 'follow', signal: AbortSignal.timeout(15_000) });
+  const { response: upstream, controller } = await fetchWithHeaderTimeout(
+    url,
+    { headers, redirect: 'follow' },
+    15_000,
+  );
   res.status(upstream.status);
   for (const name of ['content-type', 'content-length', 'content-range', 'accept-ranges', 'etag', 'last-modified']) {
     copyHeader(upstream, res, name);
   }
   if (!res.getHeader('content-type')) res.setHeader('content-type', 'audio/mpeg');
   res.setHeader('Cache-Control', 'no-store');
-  if (!upstream.body) {
-    res.end();
-    return;
-  }
-  await pipeWebBody(upstream.body, res);
+  await pipeUpstream(upstream, controller, res);
 }

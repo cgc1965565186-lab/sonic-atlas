@@ -29,7 +29,15 @@ export function resolveApiUrl(path: string) {
 
 export function resolveMediaUrl(value: string) {
   if (!value) return '';
-  if (/^https?:\/\//i.test(value)) return value;
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const parsed = new URL(value);
+      if (parsed.hostname === '127.0.0.1' && apiBaseUrl) return resolveApiUrl(`${parsed.pathname}${parsed.search}`);
+    } catch {
+      return '';
+    }
+    return value;
+  }
   return value.startsWith('/') ? resolveApiUrl(value) : '';
 }
 
@@ -46,7 +54,7 @@ export function resolveAuthMedia(status: AuthStatus): AuthStatus {
   return { ...status, user: { ...status.user, avatarUrl: resolveMediaUrl(status.user.avatarUrl) } };
 }
 
-async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
+export async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
   let response: Response;
   try {
     response = await fetch(resolveApiUrl(path), { signal, headers: { Accept: 'application/json' } });

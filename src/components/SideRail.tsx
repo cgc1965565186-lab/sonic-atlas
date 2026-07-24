@@ -1,6 +1,9 @@
 import {
   Aperture,
   ArrowsOut,
+  Bug,
+  Export as ExportIcon,
+  ListBullets,
   MagnifyingGlass,
   Playlist,
   ShieldCheck,
@@ -19,7 +22,10 @@ const entries: Array<{
 }> = [
   { id: 'search', label: '搜索', icon: MagnifyingGlass },
   { id: 'library', label: '歌单', icon: Playlist },
+  { id: 'queue', label: '播放队列', icon: ListBullets },
   { id: 'visual', label: '声场', icon: SlidersHorizontal },
+  { id: 'export', label: '视觉导出', icon: ExportIcon },
+  { id: 'diagnostics', label: '诊断与反馈', icon: Bug },
   { id: 'account', label: '账号', icon: UserCircle },
   { id: 'help', label: '安装帮助', icon: ShieldCheck },
 ];

@@ -14,6 +14,7 @@ interface UpstreamSong {
 
 export function normalizeSong(song: UpstreamSong): {
   id: string;
+  source: 'netease';
   title: string;
   artists: string[];
   album: { id: string; name: string };

@@ -3,6 +3,7 @@ import type { AuthStatus, PlaylistSummary, SongSummary } from './types';
 
 const song: SongSummary = {
   id: '1',
+  source: 'netease',
   title: 'Atlas',
   artists: ['Sonic'],
   album: { id: '2', name: 'Field' },
