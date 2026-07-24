@@ -3,7 +3,8 @@
 Sonic Atlas 是一个面向个人学习与研究的桌面沉浸式音乐播放器。0.2 版把程序化 Demo、网易云音乐或本地音乐的实时频谱映射为声音地形，并加入混合播放队列、多种歌词动效、自适应画质、视觉导出与脱敏诊断。
 
 - 产品介绍网站：[cgc1965565186-lab.github.io/sonic-atlas](https://cgc1965565186-lab.github.io/sonic-atlas/)
-- macOS 安装包：[GitHub Releases](https://github.com/cgc1965565186-lab/sonic-atlas/releases/latest)
+- macOS 安装包：[下载 Sonic Atlas 0.2.0（Apple Silicon）](https://github.com/cgc1965565186-lab/sonic-atlas/releases/download/v0.2.0/SonicAtlas-0.2.0-arm64.dmg)
+- DMG SHA-256：`7a8762e34740c8ac14a2530381994c3144bba6ba6839ebcaba29a9863cf66a40`
 
 默认视觉主题为「煤黑琥珀」。工程借鉴 Sonic Topography 的 Electron / Express / React / R3F 分层方式，并只参考 Mineradio 的电影感与玻璃视觉语言，没有复制其 GPL 单文件代码或资源。
 
