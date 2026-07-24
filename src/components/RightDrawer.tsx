@@ -408,7 +408,7 @@ function ExportPanel() {
         <div className="segmented-control">
           {([5, 10, 15] as const).map((value) => <button key={value} type="button" className={duration === value ? 'is-selected' : ''} onClick={() => setDuration(value)}>{value} 秒</button>)}
         </div>
-        <label className="switch-row"><span><strong>包含当前音频</strong><small>{playing ? '录制正在播放的片段' : '当前未播放，导出将没有声音'}</small></span><input type="checkbox" checked={includeAudio} onChange={(event) => setIncludeAudio(event.currentTarget.checked)} /><i /></label>
+        <label className="switch-row"><span><strong>包含当前音频</strong><small>{playing ? '录制正在播放的片段' : '录制时自动播放，结束后恢复暂停'}</small></span><input type="checkbox" checked={includeAudio} onChange={(event) => setIncludeAudio(event.currentTarget.checked)} /><i /></label>
         <label className="rights-confirm"><input type="checkbox" checked={rightsConfirmed} onChange={(event) => setRightsConfirmed(event.currentTarget.checked)} /><span>我确认有权使用当前片段，并理解导出仅限 15 秒以内。</span></label>
         <button className="primary-button" type="button" disabled={busy || !currentTrack || !rightsConfirmed} onClick={() => void runVideo()}><FilmStrip />{busy && progress > 0 ? `录制中 ${Math.round(progress * 100)}%` : '录制视觉短片'}</button>
       </section>

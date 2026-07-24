@@ -417,7 +417,7 @@
       </div>
       <div class="nav-actions">
         <button class="icon-button" id="motionToggle" type="button" aria-label="暂停页面动画" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-        <a class="icon-button" href="https://github.com/cgc1965565186-lab/sonic-atlas/releases/download/v0.2.1/SonicAtlas-0.2.1-arm64.dmg" aria-label="下载 Sonic Atlas 0.2.1"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <a class="icon-button" href="https://github.com/cgc1965565186-lab/sonic-atlas/releases/download/v0.2.2/SonicAtlas-0.2.2-arm64.dmg" aria-label="下载 Sonic Atlas 0.2.2"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       </div>
     </nav>
   </div>
@@ -430,9 +430,9 @@
         <p class="hero-lead">从网易云到你的本地资料库，歌曲进入同一条播放队列；歌词、地形、粒子与光线再把每一次呼吸，重构成可以漫游的动态世界。</p>
         <div class="hero-actions">
           <a class="primary magnetic" href="#update"><svg viewBox="0 0 24 24" fill="none"><path d="M5 17 10 7l4 7 3-10 3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>探索 0.2 更新</a>
-          <a class="secondary-button magnetic" href="https://github.com/cgc1965565186-lab/sonic-atlas/releases/download/v0.2.1/SonicAtlas-0.2.1-arm64.dmg">下载 0.2.1<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="secondary-button magnetic" href="https://github.com/cgc1965565186-lab/sonic-atlas/releases/download/v0.2.2/SonicAtlas-0.2.2-arm64.dmg">下载 0.2.2<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
         </div>
-        <div class="hero-note"><span><i></i>网易云 + 本地音乐</span><span>原文件不复制、不上传</span><span>0.2.1 修复更新</span></div>
+        <div class="hero-note"><span><i></i>网易云 + 本地音乐</span><span>原文件不复制、不上传</span><span>0.2.2 歌词与短片修复</span></div>
       </div>
       <div class="hero-stage reveal is-visible">
         <canvas class="terrain-canvas" data-grid="25" aria-label="随节拍起伏的交互式声音地形"></canvas>
@@ -465,7 +465,7 @@
         <article class="update-flow reveal" aria-label="网易云和本地音乐进入统一播放队列">
           <div class="update-flow-head">
             <div><div class="eyebrow">One listening flow</div><h3>两个来源，<br>一条播放队列。</h3><p>本地音乐只引用原文件。网易云曲目在播放时重新获取地址，两者可以自由排序、下一首播放或加入队尾。</p></div>
-            <span class="version-chip mono">0.2.1 / MACOS</span>
+            <span class="version-chip mono">0.2.2 / MACOS</span>
           </div>
           <div class="source-map">
             <div class="source-stack">
@@ -483,16 +483,16 @@
           <div class="flow-caption"><span>拖动排序</span><span>四种播放模式</span><span>每 5 秒保存</span><span>重启后保持暂停</span></div>
         </article>
         <aside class="update-notes reveal">
-          <div class="status-line"><i></i> 0.2.1 HOTFIX · AVAILABLE NOW</div>
-          <h3>地形重新随音乐呼吸。</h3>
-          <p>0.2.1 修复了地形被开场状态压平、向导重复出现的问题，并重新整理侧栏与五种歌词视觉。本期仍只专注 macOS。</p>
+          <div class="status-line"><i></i> 0.2.2 HOTFIX · AVAILABLE NOW</div>
+          <h3>歌词回到舞台中心，短片终于有声音。</h3>
+          <p>0.2.2 把歌词整体上移，并修复换句后动效退回静态的问题；视觉短片现在会录入实际播放音频，并保留声音地形、实时频谱与曲目信息。本期仍只专注 macOS。</p>
           <ul class="update-list">
-            <li><span>01</span><div><strong>播放状态真正回来</strong><small>队列、当前歌曲、进度、音量与播放模式都会恢复，但不会自动出声。</small></div></li>
-            <li><span>02</span><div><strong>弱网不再误伤长音频</strong><small>15 秒限制只覆盖连接和响应头，不再中断已经正常播放的音频流。</small></div></li>
-            <li><span>03</span><div><strong>视觉作品保留边界</strong><small>PNG 截图或最长 15 秒短片始终带品牌水印，不提供完整歌曲或纯音频导出。</small></div></li>
-            <li><span>04</span><div><strong>问题由你决定是否反馈</strong><small>诊断摘要先预览、再复制或导出，不后台上传，也不包含凭据和完整路径。</small></div></li>
+            <li><span>01</span><div><strong>歌词位置重新校准</strong><small>普通窗口恢复到画面中上部，当前行与前后文不再贴近底部播放器。</small></div></li>
+            <li><span>02</span><div><strong>每一句都有自己的动效</strong><small>电影淡入、呼吸聚焦、逐字流光与景深漂移都会在换句时重新启动，旧歌词会完整退出。</small></div></li>
+            <li><span>03</span><div><strong>短片带上真正的音乐</strong><small>暂停状态下会为录制临时播放，结束后恢复暂停；输出保留动态歌词、实时频谱与声音地形。</small></div></li>
+            <li><span>04</span><div><strong>改用真实歌曲验收</strong><small>打包版以 CC0 人声歌曲和逐行 LRC 完成跨句动效及带声 MP4 的端到端检查。</small></div></li>
           </ul>
-          <a class="update-link" href="https://github.com/cgc1965565186-lab/sonic-atlas/releases/tag/v0.2.1" target="_blank" rel="noreferrer">查看 0.2.1 修复说明<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7m0 0H9m8 0v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="update-link" href="https://github.com/cgc1965565186-lab/sonic-atlas/releases/tag/v0.2.2" target="_blank" rel="noreferrer">查看 0.2.2 修复说明<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7m0 0H9m8 0v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
         </aside>
       </div>
     </section>
@@ -583,7 +583,7 @@
     </section>
 
     <section class="cta shell" id="download">
-      <div class="cta-box reveal"><div class="eyebrow">Available now · macOS ARM64</div><h2>下一首歌，去地形里听。</h2><p>Sonic Atlas 0.2.1 已修复地形响应、首次启动状态与歌词视觉。下载后将应用拖入“应用程序”，即可连接网易云或导入只留在本机的音乐资料库。</p><div class="cta-actions"><a class="primary magnetic" href="https://github.com/cgc1965565186-lab/sonic-atlas/releases/download/v0.2.1/SonicAtlas-0.2.1-arm64.dmg"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>下载 Sonic Atlas 0.2.1</a><a class="secondary-button magnetic" href="https://github.com/cgc1965565186-lab/sonic-atlas/releases/tag/v0.2.1" target="_blank" rel="noreferrer">查看修复说明</a></div><div class="cta-legal">macOS ARM64 · 未签名测试构建 · 仅限个人学习与研究 · 不包含 Windows 版</div></div>
+      <div class="cta-box reveal"><div class="eyebrow">Available now · macOS ARM64</div><h2>下一首歌，去地形里听。</h2><p>Sonic Atlas 0.2.2 已修复歌词位置、连续动效与带声视觉短片。下载后将应用拖入“应用程序”，即可连接网易云或导入只留在本机的音乐资料库。</p><div class="cta-actions"><a class="primary magnetic" href="https://github.com/cgc1965565186-lab/sonic-atlas/releases/download/v0.2.2/SonicAtlas-0.2.2-arm64.dmg"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>下载 Sonic Atlas 0.2.2</a><a class="secondary-button magnetic" href="https://github.com/cgc1965565186-lab/sonic-atlas/releases/tag/v0.2.2" target="_blank" rel="noreferrer">查看修复说明</a></div><div class="cta-legal">macOS ARM64 · 未签名测试构建 · 仅限个人学习与研究 · 不包含 Windows 版</div></div>
     </section>
   </main>
 

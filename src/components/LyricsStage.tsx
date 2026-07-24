@@ -106,7 +106,18 @@ const ActiveLyric = memo(function ActiveLyric({
 
   if (mode === 'depth') {
     return (
-      <p className="lyric-current lyric-depth-current">
+      <motion.p
+        className="lyric-current lyric-depth-current"
+        animate={{
+          y: [0, -2.5 * intensity, 0],
+          scale: [1, 1 + 0.006 * intensity, 1],
+        }}
+        transition={{
+          duration: Math.max(2.8, Math.min(5.4, durationMs / 1_000)),
+          ease: 'easeInOut',
+          repeat: Infinity,
+        }}
+      >
         {graphemes.map((grapheme, index) => {
           const drift = characterDrift(line.text, index);
           const delay = Math.min(0.34, index * 0.014);
@@ -134,21 +145,68 @@ const ActiveLyric = memo(function ActiveLyric({
             </motion.span>
           );
         })}
-      </p>
+      </motion.p>
+    );
+  }
+
+  if (mode === 'breathe') {
+    return (
+      <motion.p
+        className="lyric-current lyric-breathe-current"
+        initial={{ opacity: 0, y: 8, filter: 'blur(4px)', scale: 0.992 }}
+        animate={{
+          opacity: [0.82, 1, 0.9],
+          y: [0, -2.2 * intensity, 0],
+          scale: [0.994, 1 + intensity * 0.018, 0.998],
+          filter: [
+            'blur(0px) brightness(.96)',
+            `blur(0px) brightness(${1.04 + intensity * 0.08})`,
+            'blur(0px) brightness(1)',
+          ],
+          textShadow: [
+            '0 8px 30px rgba(0,0,0,.72)',
+            '0 0 30px rgba(255,208,138,.28)',
+            '0 8px 30px rgba(0,0,0,.72)',
+          ],
+        }}
+        exit={{
+          opacity: 0,
+          y: -9,
+          filter: 'blur(5px)',
+          scale: 1.008,
+          transition: { duration: 0.32, ease: [0.4, 0, 1, 1], repeat: 0 },
+        }}
+        transition={{
+          duration: Math.max(2.6, Math.min(4.8, durationMs / 1_000)),
+          ease: 'easeInOut',
+          repeat: Infinity,
+        }}
+      >
+        <span>{line.text}</span>
+      </motion.p>
     );
   }
 
   return (
     <motion.p
-      className={`lyric-current ${mode === 'breathe' ? 'lyric-breathe-current' : 'lyric-cinematic-current'}`}
-      initial={mode === 'cinematic'
-        ? { opacity: 0, y: 16 + intensity * 8, filter: `blur(${5 + intensity * 5}px)`, clipPath: 'inset(0 0 34% 0)' }
-        : { opacity: 0, y: 6, filter: 'blur(4px)' }}
+      className="lyric-current lyric-cinematic-current"
+      initial={{ opacity: 0, y: 16 + intensity * 8, filter: `blur(${5 + intensity * 5}px)`, clipPath: 'inset(0 0 34% 0)' }}
       animate={{ opacity: 1, y: 0, filter: 'blur(0px)', clipPath: 'inset(0 0 0% 0)' }}
       exit={{ opacity: 0, y: -8, filter: 'blur(5px)' }}
-      transition={{ duration: mode === 'cinematic' ? 0.62 + intensity * 0.24 : 0.42, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.62 + intensity * 0.24, ease: [0.16, 1, 0.3, 1] }}
     >
       <span>{line.text}</span>
+      <motion.i
+        aria-hidden="true"
+        className="lyric-cinematic-sheen"
+        initial={{ scaleX: 0, opacity: 0 }}
+        animate={{ scaleX: [0, 1, 1], opacity: [0, 0.62, 0] }}
+        transition={{
+          duration: Math.max(1.4, Math.min(3.4, durationMs / 1_000 * 0.72)),
+          times: [0, 0.72, 1],
+          ease: [0.16, 1, 0.3, 1],
+        }}
+      />
     </motion.p>
   );
 });
@@ -195,36 +253,43 @@ export function LyricsStage({ immersive, reducedMotion }: { immersive: boolean; 
         hot={palette.hot}
         reducedMotion={staticMotion || motionMode !== 'depth'}
       />
-      <div className="lyrics-depth-stack" aria-hidden="true">
-        {visibleLines.map(({ line, offset }) => {
+      <motion.div className="lyrics-depth-stack" aria-hidden="true" layout>
+        <AnimatePresence mode="popLayout" initial={false}>
+        {visibleLines.map(({ line, offset, index }) => {
           const isActive = offset === 0;
           return (
             <motion.div
               layout="position"
               className={`lyric-depth-line ${isActive ? 'is-active' : ''}`}
-              key={line.timeMs}
+              key={`${index}-${isActive ? `active-${motionMode}` : 'context'}`}
+              data-lyric-time={line.timeMs}
+              data-active={isActive ? 'true' : 'false'}
               initial={staticMotion ? false : { opacity: 0, y: offset >= 0 ? 13 : -13, filter: 'blur(7px)' }}
               animate={lineTarget(motionMode, offset, contextOpacity / 100, intensity, staticMotion)}
+              exit={staticMotion ? { opacity: 0 } : {
+                opacity: 0,
+                y: offset <= 0 ? -16 : 16,
+                filter: 'blur(7px)',
+                scale: 0.94,
+              }}
               transition={{ duration: staticMotion ? 0.1 : motionMode === 'cinematic' ? 0.66 : 0.46, ease: [0.16, 1, 0.3, 1] }}
               style={{ transformPerspective: 900 }}
             >
-              <AnimatePresence mode="wait" initial={false}>
-                {isActive ? (
-                  <ActiveLyric
-                    key={`${line.timeMs}-${motionMode}`}
-                    line={line}
-                    mode={motionMode}
-                    reducedMotion={reducedMotion}
-                    intensity={intensity}
-                    durationMs={durationMs}
-                  />
-                ) : <motion.p key={`context-${line.timeMs}`}>{line.text}</motion.p>}
-              </AnimatePresence>
+              {isActive ? (
+                <ActiveLyric
+                  line={line}
+                  mode={motionMode}
+                  reducedMotion={reducedMotion}
+                  intensity={intensity}
+                  durationMs={durationMs}
+                />
+              ) : <motion.p>{line.text}</motion.p>}
               {isActive && line.translation ? <span className="lyric-translation">{line.translation}</span> : null}
             </motion.div>
           );
         })}
-      </div>
+        </AnimatePresence>
+      </motion.div>
       <p className="sr-only" aria-live="polite">{activeLine.text}{activeLine.translation ? `，${activeLine.translation}` : ''}</p>
     </motion.section>
   );
