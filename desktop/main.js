@@ -2,6 +2,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, safeStorage, session, shell } from 'electron';
+import { createAppState } from './app-state.mjs';
 import { createAuthStore, normalizeCookie } from './auth-store.mjs';
 import { createDiagnostics, isExpectedCancellation } from './diagnostics.mjs';
 import { createLocalLibrary, SUPPORTED_AUDIO_EXTENSIONS } from './local-library.mjs';
@@ -14,6 +15,7 @@ let localServer = null;
 let authStore = null;
 let localLibrary = null;
 let diagnostics = null;
+let appState = null;
 let loginWindow = null;
 let closingServer = false;
 const installHelpUrl = 'https://cgc1965565186-lab.github.io/sonic-atlas/#macos-install';
@@ -170,13 +172,22 @@ async function openNeteaseLogin() {
 }
 
 function registerIpc() {
-  handle('runtime:get-config', async () => ({
-    apiBaseUrl: localServer.url,
-    platform: process.platform,
-    version: app.getVersion(),
-    fullscreen: Boolean(mainWindow?.isFullScreen()),
-  }));
+  handle('runtime:get-config', async () => {
+    const stored = appState.snapshot();
+    return {
+      apiBaseUrl: localServer.url,
+      platform: process.platform,
+      version: app.getVersion(),
+      fullscreen: Boolean(mainWindow?.isFullScreen()),
+      onboardingComplete: stored.onboardingComplete,
+      playerSession: stored.playerSession,
+      visualPreferences: stored.visualPreferences,
+    };
+  });
   handle('app:open-install-help', () => shell.openExternal(installHelpUrl));
+  handle('app:set-onboarding-complete', (value) => appState.setOnboardingComplete(value));
+  handle('app:save-player-session', (value) => appState.setPlayerSession(value));
+  handle('app:save-visual-preferences', (value) => appState.setVisualPreferences(value));
   handle('local:list', () => localLibrary.list());
   handle('local:import-files', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
@@ -309,6 +320,11 @@ app.on('second-instance', () => {
 void app.whenReady().then(async () => {
   diagnostics = createDiagnostics({ userDataPath: app.getPath('userData'), appVersion: app.getVersion() });
   await diagnostics.load();
+  appState = createAppState({
+    userDataPath: app.getPath('userData'),
+    log: (level, event, details) => diagnostics.record(level, event, details),
+  });
+  await appState.load();
   localLibrary = createLocalLibrary({
     userDataPath: app.getPath('userData'),
     log: (level, event, details) => diagnostics.record(level, event, details),
@@ -352,5 +368,5 @@ app.on('before-quit', (event) => {
   if (!localServer || closingServer) return;
   event.preventDefault();
   closingServer = true;
-  void localServer.close().finally(() => app.quit());
+  void Promise.all([localServer.close(), appState?.flush()]).finally(() => app.quit());
 });

@@ -1,7 +1,7 @@
 {
   "name": "sonic-atlas",
   "productName": "Sonic Atlas",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "A desktop immersive music player and sonic topography visualizer.",
   "author": "Sonic Atlas",

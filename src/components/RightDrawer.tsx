@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowsClockwise,
   ArrowLeft,
@@ -81,7 +81,7 @@ function TrackRow({ song, index, queue }: { song: SongSummary; index: number; qu
   );
 }
 
-function SearchPanel() {
+function SearchPanel({ sourceTabs }: { sourceTabs?: ReactNode }) {
   const desktopAvailable = useAuthStore((state) => state.desktopAvailable);
   const [query, setQuery] = useState('');
   const [songs, setSongs] = useState<SongSummary[]>([]);
@@ -130,11 +130,12 @@ function SearchPanel() {
   };
 
   if (!desktopAvailable) {
-    return <div className="drawer-panel"><PanelState icon={<CloudSlash />} title="桌面版连接曲库" detail="浏览器预览保留完整 UI 与 Demo；请运行 Electron 版进行搜索和播放" /></div>;
+    return <div className="drawer-panel">{sourceTabs}<PanelState icon={<CloudSlash />} title="桌面版连接曲库" detail="浏览器预览保留完整 UI 与 Demo；请运行 Electron 版进行搜索和播放" /></div>;
   }
 
   return (
     <div className="drawer-panel">
+      {sourceTabs}
       <label className="search-field">
         <MagnifyingGlass />
         <input ref={inputRef} value={query} onChange={(event) => updateQuery(event.currentTarget.value)} placeholder="歌曲、歌手或专辑" />
@@ -154,7 +155,8 @@ function SearchPanel() {
 }
 
 function LibraryPanel() {
-  const [source, setSource] = useState<'local' | 'netease'>('local');
+  const source = useUiStore((state) => state.musicSection);
+  const setSource = useUiStore((state) => state.setMusicSection);
   const authenticated = useAuthStore((state) => state.authenticated);
   const openLogin = useAuthStore((state) => state.openLogin);
   const local = useLocalLibraryStore();
@@ -204,11 +206,14 @@ function LibraryPanel() {
   };
 
   const sourceTabs = (
-    <div className="segmented-control source-tabs">
+    <div className="segmented-control source-tabs source-tabs-three">
+      <button type="button" className={source === 'search' ? 'is-selected' : ''} onClick={() => setSource('search')}>搜索</button>
       <button type="button" className={source === 'local' ? 'is-selected' : ''} onClick={() => setSource('local')}>本地音乐</button>
       <button type="button" className={source === 'netease' ? 'is-selected' : ''} onClick={() => setSource('netease')}>网易云</button>
     </div>
   );
+
+  if (source === 'search') return <SearchPanel sourceTabs={sourceTabs} />;
 
   if (source === 'local') {
     return (
@@ -412,7 +417,7 @@ function ExportPanel() {
   );
 }
 
-function DiagnosticsPanel() {
+function DiagnosticsSection() {
   const [report, setReport] = useState<Record<string, unknown> | null>(null);
   const [message, setMessage] = useState('');
   const quality = useVisualStore((state) => state.effectiveQuality);
@@ -444,8 +449,12 @@ function DiagnosticsPanel() {
     setMessage('脱敏诊断摘要已复制。');
   };
   return (
-    <div className="drawer-panel diagnostics-panel">
-      <PanelState icon={<Bug />} title="诊断与反馈" detail="报告不会包含 Cookie、完整网络地址或本地文件路径。" />
+    <section className="setting-section diagnostics-panel support-section">
+      <div className="section-heading"><span>DIAGNOSTICS & FEEDBACK</span><small>由你决定是否导出</small></div>
+      <div className="support-copy">
+        <Bug />
+        <p><strong>诊断与反馈</strong><small>不会包含 Cookie、完整网络地址或本地文件路径，也不会在后台自动上传。</small></p>
+      </div>
       <div className="diagnostic-actions">
         <button className="secondary-button" type="button" onClick={() => void refresh()}><ArrowsClockwise />刷新</button>
         <button className="secondary-button" type="button" disabled={!report} onClick={() => void copyReport()}><Copy />复制摘要</button>
@@ -454,7 +463,7 @@ function DiagnosticsPanel() {
       {report ? <pre className="diagnostic-preview">{JSON.stringify(report, null, 2)}</pre> : <PanelState icon={<SpinnerGap className="spin" />} title="正在准备报告" detail="只汇总最近 200 条脱敏事件" />}
       <button className="primary-button" type="button" onClick={() => void window.sonicAtlas?.openFeedback(status)}><NotePencil />复制报告并反馈问题</button>
       {message ? <p className="inline-notice" aria-live="polite">{message}</p> : null}
-    </div>
+    </section>
   );
 }
 
@@ -604,24 +613,33 @@ function AccountPanel() {
   );
 }
 
-function InstallHelpPanel() {
+function SupportPanel() {
   const openInstallHelp = () => void window.sonicAtlas?.openInstallHelp();
   const restartIntro = useUiStore((state) => state.restartIntro);
   return (
-    <div className="drawer-panel install-help-panel">
-      <PanelState icon={<ShieldCheck />} title="macOS 首次安装帮助" detail="Sonic Atlas 是未签名测试构建；请只在确认下载来源可信时为它创建例外。" />
-      <ol>
-        <li>从“应用程序”正常尝试打开 Sonic Atlas 一次。</li>
-        <li>若被拦截，前往“系统设置 → 隐私与安全性”。</li>
-        <li>在“安全性”区域点“仍要打开（Open Anyway）”，再确认“打开”。</li>
-      </ol>
-      <p className="inline-notice">无需关闭 Gatekeeper，也不要使用终端命令移除隔离保护。受管理的 Mac 请联系 IT 管理员。</p>
-      {window.sonicAtlas ? (
-        <button className="secondary-button" type="button" onClick={openInstallHelp}>查看官方安装说明</button>
-      ) : (
-        <a className="secondary-button" href="https://cgc1965565186-lab.github.io/sonic-atlas/#macos-install" target="_blank" rel="noreferrer">查看官方安装说明</a>
-      )}
-      <button className="secondary-button" type="button" onClick={restartIntro}><ArrowsClockwise />重新打开首次启动向导</button>
+    <div className="drawer-panel install-help-panel support-panel">
+      <section className="setting-section support-section">
+        <div className="section-heading"><span>MACOS SAFETY</span><small>未签名测试构建</small></div>
+        <div className="support-copy">
+          <ShieldCheck />
+          <p><strong>首次安装与安全</strong><small>只在确认安装包来自 Sonic Atlas 官网或本项目 Release 时继续。</small></p>
+        </div>
+        <ol>
+          <li>从“应用程序”正常尝试打开 Sonic Atlas 一次。</li>
+          <li>若被拦截，前往“系统设置 → 隐私与安全性”。</li>
+          <li>在“安全性”区域点“仍要打开（Open Anyway）”，再确认“打开”。</li>
+        </ol>
+        <p className="inline-notice">无需关闭 Gatekeeper，也不要使用终端命令移除隔离保护。受管理的 Mac 请联系 IT 管理员。</p>
+        <div className="support-actions">
+          {window.sonicAtlas ? (
+            <button className="secondary-button" type="button" onClick={openInstallHelp}>查看官方安装说明</button>
+          ) : (
+            <a className="secondary-button" href="https://cgc1965565186-lab.github.io/sonic-atlas/#macos-install" target="_blank" rel="noreferrer">查看官方安装说明</a>
+          )}
+          <button className="secondary-button" type="button" onClick={restartIntro}><ArrowsClockwise />重新打开首次启动向导</button>
+        </div>
+      </section>
+      <DiagnosticsSection />
     </div>
   );
 }
@@ -631,14 +649,12 @@ function PanelState({ icon, title, detail }: { icon: React.ReactNode; title: str
 }
 
 const titles = {
-  search: ['SEARCH', '在网易云曲库中寻找'],
-  library: ['LIBRARY', '网易云与本地音乐'],
+  library: ['MUSIC', '搜索、网易云与本地音乐'],
   queue: ['QUEUE', '安排接下来播放的声音'],
   visual: ['VISUAL FIELD', '塑造声音地形与歌词'],
   export: ['EXPORT', '带水印的截图与短片'],
-  diagnostics: ['DIAGNOSTICS', '脱敏状态与反馈'],
   account: ['ACCOUNT', '本机登录与安全'],
-  help: ['INSTALL HELP', 'macOS 首次安装与安全'],
+  help: ['SUPPORT', '安装安全、诊断与反馈'],
 } as const;
 
 export function RightDrawer() {
@@ -650,14 +666,12 @@ export function RightDrawer() {
         <motion.aside className="drawer-wrap" initial={{ x: 28, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 24, opacity: 0 }} transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}>
           <GlassSurface className="right-drawer">
             <header><div><span>{titles[drawer][0]}</span><p>{titles[drawer][1]}</p></div><button type="button" className="icon-button" onClick={closeDrawer} aria-label="关闭面板"><X /></button></header>
-            {drawer === 'search' ? <SearchPanel /> : null}
             {drawer === 'library' ? <LibraryPanel /> : null}
             {drawer === 'queue' ? <QueuePanel /> : null}
             {drawer === 'visual' ? <VisualPanel /> : null}
             {drawer === 'export' ? <ExportPanel /> : null}
-            {drawer === 'diagnostics' ? <DiagnosticsPanel /> : null}
             {drawer === 'account' ? <AccountPanel /> : null}
-            {drawer === 'help' ? <InstallHelpPanel /> : null}
+            {drawer === 'help' ? <SupportPanel /> : null}
           </GlassSurface>
         </motion.aside>
       ) : null}

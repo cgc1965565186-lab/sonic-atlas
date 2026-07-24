@@ -20,8 +20,19 @@ interface DiagnosticReport {
 }
 
 interface SonicAtlasDesktop {
-  getRuntimeConfig(): Promise<{ apiBaseUrl: string; platform: string; version: string; fullscreen: boolean }>;
+  getRuntimeConfig(): Promise<{
+    apiBaseUrl: string;
+    platform: string;
+    version: string;
+    fullscreen: boolean;
+    onboardingComplete: boolean;
+    playerSession: Record<string, unknown> | null;
+    visualPreferences: Record<string, unknown> | null;
+  }>;
   openInstallHelp(): Promise<void>;
+  setOnboardingComplete(value: boolean): Promise<boolean>;
+  savePlayerSession(value: unknown): Promise<boolean>;
+  saveVisualPreferences(value: unknown): Promise<boolean>;
   importLocalFiles(): Promise<ImportResult>;
   importLocalFolder(): Promise<ImportResult>;
   listLocalTracks(): Promise<LocalTrack[]>;

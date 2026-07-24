@@ -3,8 +3,8 @@
 Sonic Atlas 是一个面向个人学习与研究的桌面沉浸式音乐播放器。0.2 版把程序化 Demo、网易云音乐或本地音乐的实时频谱映射为声音地形，并加入混合播放队列、多种歌词动效、自适应画质、视觉导出与脱敏诊断。
 
 - 产品介绍网站：[cgc1965565186-lab.github.io/sonic-atlas](https://cgc1965565186-lab.github.io/sonic-atlas/)
-- macOS 安装包：[下载 Sonic Atlas 0.2.0（Apple Silicon）](https://github.com/cgc1965565186-lab/sonic-atlas/releases/download/v0.2.0/SonicAtlas-0.2.0-arm64.dmg)
-- DMG SHA-256：`7a8762e34740c8ac14a2530381994c3144bba6ba6839ebcaba29a9863cf66a40`
+- macOS 安装包：[下载 Sonic Atlas 0.2.1（Apple Silicon）](https://github.com/cgc1965565186-lab/sonic-atlas/releases/download/v0.2.1/SonicAtlas-0.2.1-arm64.dmg)
+- DMG SHA-256：`e5989bed31c24a6006f24a90c49d1a3a4de9dd26362d1598149861db90ae6d88`
 
 默认视觉主题为「煤黑琥珀」。工程借鉴 Sonic Topography 的 Electron / Express / React / R3F 分层方式，并只参考 Mineradio 的电影感与玻璃视觉语言，没有复制其 GPL 单文件代码或资源。
 
@@ -98,7 +98,7 @@ npm run build:electron
 
 ## 验证范围
 
-45 项自动化测试覆盖：本地文件夹导入、重复文件、丢失文件、LRC、Range、安全脱敏、音频响应头超时、FFT、节拍、歌词窗口、封面配色、队列边界、自适应画质、网易云 DTO 和媒体白名单。首次向导、队列、导出面板及 1040×700 最小窗口已完成本地浏览器视觉验收。
+48 项自动化测试覆盖：本地文件夹导入、重复文件、丢失文件、LRC、Range、安全脱敏、音频响应头超时、FFT、节拍、歌词窗口、封面配色、队列边界、自适应画质、网易云 DTO、媒体白名单与桌面状态原子持久化。首次向导、队列、导出面板及 1040×700 最小窗口已完成本地浏览器视觉验收。
 
 网易云扫码、账号歌单和受版权保护曲目的最终可用性依赖用户自己的账号权限和网易云当前上游接口，测试仓库不包含任何账号凭据。
 

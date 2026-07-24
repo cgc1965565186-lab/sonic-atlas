@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef } from 'react';
 import { ArrowsIn, Eye, EyeSlash, Waveform } from '@phosphor-icons/react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { animate, AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AdaptiveQualityController } from './components/AdaptiveQualityController';
 import { FirstRunGuide } from './components/FirstRunGuide';
 import { LyricsStage } from './components/LyricsStage';
@@ -9,13 +9,23 @@ import { SideRail } from './components/SideRail';
 import { TopStatus } from './components/TopStatus';
 import { Transport } from './components/Transport';
 import { setApiBaseUrl } from './netease/api';
+import { openingSignal } from './config/visual';
 import { CoverPaletteController } from './palette/CoverPaletteController';
 import { mediaCommandFromKey, type MediaCommand } from './player/mediaControls';
 import { useAuthStore } from './store/authStore';
 import { useLocalLibraryStore } from './store/localLibraryStore';
-import { persistPlayerSession, usePlayerStore } from './store/playerStore';
+import {
+  enableDesktopSessionPersistence,
+  hydratePlayerSession,
+  persistPlayerSession,
+  usePlayerStore,
+} from './store/playerStore';
 import { useUiStore } from './store/uiStore';
-import { useVisualStore } from './store/visualStore';
+import {
+  hydrateVisualPreferences,
+  useVisualStore,
+  visualPreferencesSnapshot,
+} from './store/visualStore';
 import { shouldShowLyrics } from './ui/lyricsVisibility';
 
 const SonicScene = lazy(() => import('./scene/SonicScene'));
@@ -24,6 +34,8 @@ export default function App() {
   const prefersReducedMotion = Boolean(useReducedMotion());
   const palette = useVisualStore((state) => state.runtimePalette);
   const introComplete = useUiStore((state) => state.introComplete);
+  const introReady = useUiStore((state) => state.introReady);
+  const hydrateIntro = useUiStore((state) => state.hydrateIntro);
   const setIntroComplete = useUiStore((state) => state.setIntroComplete);
   const immersive = useUiStore((state) => state.immersive);
   const fullscreen = useUiStore((state) => state.fullscreen);
@@ -49,7 +61,10 @@ export default function App() {
   const localTracks = useLocalLibraryStore((state) => state.tracks);
   const lastMediaCommand = useRef<{ command: MediaCommand | null; at: number }>({ command: null, at: 0 });
 
-  const completeIntro = useCallback(() => setIntroComplete(true), [setIntroComplete]);
+  const completeIntro = useCallback(() => {
+    setIntroComplete(true);
+    void window.sonicAtlas?.setOnboardingComplete(true);
+  }, [setIntroComplete]);
   const dispatchMediaCommand = useCallback((command: MediaCommand) => {
     const now = performance.now();
     if (lastMediaCommand.current.command === command && now - lastMediaCommand.current.at < 180) return;
@@ -62,6 +77,7 @@ export default function App() {
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
+    let unsubscribeVisual: (() => void) | undefined;
     let cancelled = false;
     void (async () => {
       try {
@@ -70,19 +86,45 @@ export default function App() {
           if (cancelled) return;
           setApiBaseUrl(runtime.apiBaseUrl);
           setFullscreen(runtime.fullscreen);
+          hydratePlayerSession(runtime.playerSession);
+          hydrateVisualPreferences(runtime.visualPreferences);
           usePlayerStore.getState().rebindMedia();
+          enableDesktopSessionPersistence();
+          hydrateIntro(runtime.onboardingComplete);
+          unsubscribeVisual = useVisualStore.subscribe((state) => {
+            void window.sonicAtlas?.saveVisualPreferences(visualPreferencesSnapshot(state));
+          });
           unsubscribe = window.sonicAtlas.onAuthChanged(applyAuthStatus);
+        } else {
+          hydrateIntro(useUiStore.getState().introComplete);
         }
         await Promise.all([initializeAuth(), initializeLocalLibrary()]);
       } catch {
         // The visual demo remains usable when the local music service is unavailable.
+        if (!cancelled) hydrateIntro(useUiStore.getState().introComplete);
       }
     })();
     return () => {
       cancelled = true;
       unsubscribe?.();
+      unsubscribeVisual?.();
     };
-  }, [applyAuthStatus, initializeAuth, initializeLocalLibrary, setFullscreen]);
+  }, [applyAuthStatus, hydrateIntro, initializeAuth, initializeLocalLibrary, setFullscreen]);
+
+  useEffect(() => {
+    if (!introReady || !introComplete) {
+      openingSignal.value = 0;
+      return;
+    }
+    const playback = animate(openingSignal.value, 1, {
+      duration: prefersReducedMotion ? 0.18 : 1.35,
+      ease: [0.16, 1, 0.3, 1],
+      onUpdate: (value) => {
+        openingSignal.value = value;
+      },
+    });
+    return () => playback.stop();
+  }, [introComplete, introReady, prefersReducedMotion]);
 
   useEffect(() => window.sonicAtlas?.onFullscreenChanged(setFullscreen), [setFullscreen]);
 
@@ -154,7 +196,7 @@ export default function App() {
       const isTyping = target?.matches('input, textarea, select, [contenteditable="true"]') ?? false;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        useUiStore.getState().openDrawer('search');
+        useUiStore.getState().openMusic('search');
         return;
       }
       if (isTyping || !introComplete) return;
@@ -198,11 +240,11 @@ export default function App() {
       <div className="ambient-vignette" />
       <NoiseOverlay />
       <AnimatePresence>
-        {introComplete && showLyrics ? <LyricsStage immersive={focusedVisualMode} reducedMotion={prefersReducedMotion} /> : null}
+        {introReady && introComplete && showLyrics ? <LyricsStage immersive={focusedVisualMode} reducedMotion={prefersReducedMotion} /> : null}
       </AnimatePresence>
 
       <AnimatePresence>
-        {introComplete && !immersive ? (
+        {introReady && introComplete && !immersive ? (
           <motion.div className="hud-layer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.45 }}>
             <TopStatus />
             <SideRail />
@@ -212,7 +254,7 @@ export default function App() {
         ) : null}
       </AnimatePresence>
 
-      {introComplete && mode === 'idle' && !immersive && !drawer ? (
+      {introReady && introComplete && mode === 'idle' && !immersive && !drawer ? (
         <motion.button className="demo-gate" type="button" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} onClick={() => void startDemo()}>
           <Waveform />
           <span><strong>启动程序化演示</strong><small>触碰后启用 110 BPM 有声地形</small></span>
@@ -238,7 +280,7 @@ export default function App() {
         ) : null}
       </AnimatePresence>
 
-      {!introComplete ? <FirstRunGuide reducedMotion={prefersReducedMotion} onComplete={completeIntro} /> : null}
+      {introReady && !introComplete ? <FirstRunGuide reducedMotion={prefersReducedMotion} onComplete={completeIntro} /> : null}
     </main>
   );
 }

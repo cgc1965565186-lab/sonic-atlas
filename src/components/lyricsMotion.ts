@@ -20,6 +20,14 @@ export function lyricWindow(lines: LyricLine[], activeIndex: number, radius = 2)
   return result;
 }
 
+export function lyricLineDuration(lines: LyricLine[], activeIndex: number) {
+  const current = lines[activeIndex];
+  const next = lines[activeIndex + 1];
+  if (!current) return 3_600;
+  const duration = next ? next.timeMs - current.timeMs : 3_600;
+  return Math.max(1_200, Math.min(9_000, duration));
+}
+
 export function characterDrift(text: string, index: number) {
   let hash = 2_166_136_261;
   for (let cursor = 0; cursor < text.length; cursor += 1) {

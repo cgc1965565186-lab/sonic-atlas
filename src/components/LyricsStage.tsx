@@ -1,9 +1,157 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import type { LyricLine } from '../netease/types';
 import { usePlayerStore } from '../store/playerStore';
-import { useVisualStore } from '../store/visualStore';
+import { useVisualStore, type LyricMotionMode } from '../store/visualStore';
 import { LyricParticles } from './LyricParticles';
-import { characterDrift, lyricWindow, segmentGraphemes } from './lyricsMotion';
+import {
+  characterDrift,
+  lyricLineDuration,
+  lyricWindow,
+  segmentGraphemes,
+} from './lyricsMotion';
+
+function lineTarget(
+  mode: LyricMotionMode,
+  offset: number,
+  contextOpacity: number,
+  intensity: number,
+  staticMotion: boolean,
+) {
+  const distance = Math.abs(offset);
+  const opacity = offset === 0 ? 1 : (distance === 1 ? 0.9 : 0.42) * contextOpacity;
+  if (staticMotion) return { opacity, y: 0, x: 0, scale: offset === 0 ? 1 : distance === 1 ? 0.95 : 0.9, filter: 'blur(0px)', rotateX: 0 };
+  if (mode === 'depth') {
+    return {
+      opacity,
+      y: offset * (11 + intensity * 8),
+      x: offset * intensity * -4,
+      scale: offset === 0 ? 1 : distance === 1 ? 0.93 : 0.86,
+      filter: offset === 0 ? 'blur(0px)' : `blur(${distance * (1.2 + intensity * 2.3)}px)`,
+      rotateX: offset * -2.6 * intensity,
+    };
+  }
+  if (mode === 'cinematic') {
+    return {
+      opacity,
+      y: offset * 7,
+      x: 0,
+      scale: offset === 0 ? 1 : distance === 1 ? 0.96 : 0.91,
+      filter: offset === 0 ? 'blur(0px)' : `blur(${distance * 0.6}px)`,
+      rotateX: 0,
+    };
+  }
+  return {
+    opacity,
+    y: offset * 5,
+    x: 0,
+    scale: offset === 0 ? 1 : distance === 1 ? 0.95 : 0.9,
+    filter: 'blur(0px)',
+    rotateX: 0,
+  };
+}
+
+const ActiveLyric = memo(function ActiveLyric({
+  line,
+  mode,
+  reducedMotion,
+  intensity,
+  durationMs,
+}: {
+  line: LyricLine;
+  mode: LyricMotionMode;
+  reducedMotion: boolean;
+  intensity: number;
+  durationMs: number;
+}) {
+  const graphemes = useMemo(() => segmentGraphemes(line.text), [line.text]);
+  const staticMotion = reducedMotion || mode === 'static';
+
+  if (staticMotion) return <p className="lyric-current">{line.text}</p>;
+
+  if (mode === 'glow') {
+    return (
+      <motion.p
+        className="lyric-current lyric-glow-line"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+      >
+        {graphemes.map((grapheme, index) => (
+          <motion.span
+            className="lyric-glow-grapheme"
+            key={`${line.timeMs}-${index}`}
+            initial={{
+              color: 'rgba(237, 235, 230, .72)',
+              opacity: 1,
+              textShadow: '0 0 0 rgba(255, 208, 138, 0)',
+            }}
+            animate={{
+              color: '#fff8ea',
+              opacity: 1,
+              textShadow: '0 0 22px rgba(255, 208, 138, .7)',
+            }}
+            transition={{
+              delay: (index / Math.max(1, graphemes.length)) * Math.max(0.8, durationMs / 1_000 - 0.45),
+              duration: 0.34,
+              ease: [0.16, 1, 0.3, 1],
+            }}
+          >
+            {grapheme === ' ' ? '\u00a0' : grapheme}
+          </motion.span>
+        ))}
+      </motion.p>
+    );
+  }
+
+  if (mode === 'depth') {
+    return (
+      <p className="lyric-current lyric-depth-current">
+        {graphemes.map((grapheme, index) => {
+          const drift = characterDrift(line.text, index);
+          const delay = Math.min(0.34, index * 0.014);
+          return (
+            <motion.span
+              key={`${line.timeMs}-${index}`}
+              initial={{
+                opacity: 0,
+                x: drift.x * intensity,
+                y: 8 + Math.abs(drift.y) * intensity,
+                rotate: drift.rotate * intensity,
+                filter: `blur(${3 + intensity * 4}px)`,
+              }}
+              animate={{ opacity: 1, x: 0, y: 0, rotate: 0, filter: 'blur(0px)' }}
+              exit={{
+                opacity: 0,
+                x: drift.x * intensity,
+                y: drift.y * intensity,
+                rotate: drift.rotate * intensity,
+                filter: `blur(${2 + intensity * 3}px)`,
+              }}
+              transition={{ duration: 0.42 + intensity * 0.18, delay, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {grapheme === ' ' ? '\u00a0' : grapheme}
+            </motion.span>
+          );
+        })}
+      </p>
+    );
+  }
+
+  return (
+    <motion.p
+      className={`lyric-current ${mode === 'breathe' ? 'lyric-breathe-current' : 'lyric-cinematic-current'}`}
+      initial={mode === 'cinematic'
+        ? { opacity: 0, y: 16 + intensity * 8, filter: `blur(${5 + intensity * 5}px)`, clipPath: 'inset(0 0 34% 0)' }
+        : { opacity: 0, y: 6, filter: 'blur(4px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)', clipPath: 'inset(0 0 0% 0)' }}
+      exit={{ opacity: 0, y: -8, filter: 'blur(5px)' }}
+      transition={{ duration: mode === 'cinematic' ? 0.62 + intensity * 0.24 : 0.42, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <span>{line.text}</span>
+    </motion.p>
+  );
+});
 
 export function LyricsStage({ immersive, reducedMotion }: { immersive: boolean; reducedMotion: boolean }) {
   const lyrics = usePlayerStore((state) => state.lyrics);
@@ -18,32 +166,34 @@ export function LyricsStage({ immersive, reducedMotion }: { immersive: boolean; 
   const staticMotion = reducedMotion || motionMode === 'static';
   const visibleLines = useMemo(() => lyricWindow(lyrics, activeIndex), [activeIndex, lyrics]);
   const activeLine = activeIndex >= 0 ? lyrics[activeIndex] : undefined;
-  const graphemes = useMemo(() => segmentGraphemes(activeLine?.text ?? ''), [activeLine?.text]);
+  const durationMs = useMemo(() => lyricLineDuration(lyrics, activeIndex), [activeIndex, lyrics]);
+  const intensity = motionIntensity / 100;
 
-  if (!currentTrack || lyrics.length === 0) return null;
+  if (!currentTrack || lyrics.length === 0 || !activeLine) return null;
   return (
     <motion.section
       className={`lyrics-stage ${immersive ? 'is-immersive' : ''}`}
       data-motion={staticMotion ? 'static' : motionMode}
-      layout
+      data-alignment={alignment}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: reducedMotion ? 0.2 : 0.42 }}
+      transition={{ duration: reducedMotion ? 0.16 : 0.4 }}
       aria-label="同步歌词"
       style={{
         '--lyric-size': lyricSize,
         '--lyric-context-opacity': contextOpacity / 100,
-        '--lyric-motion-intensity': motionIntensity / 100,
+        '--lyric-motion-intensity': intensity,
+        '--lyric-breathe-scale': 1 + intensity * 0.018,
         textAlign: alignment,
       } as React.CSSProperties}
     >
       <LyricParticles
-        lineKey={activeLine?.timeMs ?? -1}
-        text={activeLine?.text ?? ''}
+        lineKey={activeLine.timeMs}
+        text={activeLine.text}
         secondary={palette.secondary}
         hot={palette.hot}
-        reducedMotion={staticMotion}
+        reducedMotion={staticMotion || motionMode !== 'depth'}
       />
       <div className="lyrics-depth-stack" aria-hidden="true">
         {visibleLines.map(({ line, offset }) => {
@@ -53,43 +203,21 @@ export function LyricsStage({ immersive, reducedMotion }: { immersive: boolean; 
               layout="position"
               className={`lyric-depth-line ${isActive ? 'is-active' : ''}`}
               key={line.timeMs}
-              initial={{ opacity: 0, y: offset > 0 ? 16 : -16, filter: 'blur(8px)' }}
-              animate={{
-                opacity: isActive ? 1 : (Math.abs(offset) === 1 ? 1 : 0.48) * (contextOpacity / 100),
-                y: 0,
-                scale: isActive
-                  ? motionMode === 'breathe' && !staticMotion ? 1.025 : 1
-                  : Math.abs(offset) === 1 ? 0.91 : 0.84,
-                filter: staticMotion || motionMode === 'cinematic' || motionMode === 'breathe'
-                  ? 'blur(0px)'
-                  : isActive ? 'blur(0px)' : `blur(${Math.abs(offset) * 1.8 * motionIntensity / 100}px)`,
-              }}
-              transition={{ duration: staticMotion ? 0.12 : motionMode === 'cinematic' ? 0.72 : 0.46, ease: [0.22, 1, 0.36, 1] }}
+              initial={staticMotion ? false : { opacity: 0, y: offset >= 0 ? 13 : -13, filter: 'blur(7px)' }}
+              animate={lineTarget(motionMode, offset, contextOpacity / 100, intensity, staticMotion)}
+              transition={{ duration: staticMotion ? 0.1 : motionMode === 'cinematic' ? 0.66 : 0.46, ease: [0.16, 1, 0.3, 1] }}
+              style={{ transformPerspective: 900 }}
             >
-              <AnimatePresence mode="popLayout" initial={false}>
+              <AnimatePresence mode="wait" initial={false}>
                 {isActive ? (
-                  <motion.p className="lyric-current" key={line.timeMs}>
-                    {staticMotion || motionMode === 'cinematic' || motionMode === 'breathe'
-                      ? line.text
-                      : graphemes.map((grapheme, index) => {
-                          const drift = characterDrift(line.text, index);
-                          return (
-                            <motion.span
-                              key={`${line.timeMs}-${index}`}
-                              initial={{ opacity: 0, y: 10, filter: 'blur(6px)' }}
-                              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                              exit={{ opacity: 0, x: drift.x, y: drift.y, rotate: drift.rotate, filter: 'blur(5px)' }}
-                              transition={{
-                                opacity: { duration: 0.28, delay: index * 0.018 },
-                                y: { duration: 0.4, delay: index * 0.018, ease: [0.22, 1, 0.36, 1] },
-                                filter: { duration: 0.32, delay: index * 0.018 },
-                              }}
-                            >
-                              {grapheme === ' ' ? '\u00a0' : grapheme}
-                            </motion.span>
-                          );
-                        })}
-                  </motion.p>
+                  <ActiveLyric
+                    key={`${line.timeMs}-${motionMode}`}
+                    line={line}
+                    mode={motionMode}
+                    reducedMotion={reducedMotion}
+                    intensity={intensity}
+                    durationMs={durationMs}
+                  />
                 ) : <motion.p key={`context-${line.timeMs}`}>{line.text}</motion.p>}
               </AnimatePresence>
               {isActive && line.translation ? <span className="lyric-translation">{line.translation}</span> : null}
@@ -97,7 +225,7 @@ export function LyricsStage({ immersive, reducedMotion }: { immersive: boolean; 
           );
         })}
       </div>
-      <p className="sr-only" aria-live="polite">{activeLine?.text ?? ''}{activeLine?.translation ? `，${activeLine.translation}` : ''}</p>
+      <p className="sr-only" aria-live="polite">{activeLine.text}{activeLine.translation ? `，${activeLine.translation}` : ''}</p>
     </motion.section>
   );
 }

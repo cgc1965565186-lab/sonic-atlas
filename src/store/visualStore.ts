@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
   presetPalette,
+  VISUAL_THEMES,
   type CameraPreset,
   type PaletteMode,
   type PaletteStatus,
@@ -13,6 +14,24 @@ export type QualityMode = 'auto' | 'low' | 'medium' | 'high';
 export type EffectiveQuality = Exclude<QualityMode, 'auto'>;
 export type LyricMotionMode = 'cinematic' | 'breathe' | 'glow' | 'depth' | 'static';
 export type LyricAlignment = 'left' | 'center';
+
+export interface VisualPreferences {
+  themeId: ThemeId;
+  paletteMode: PaletteMode;
+  gridSize: 32 | 48 | 64 | 80;
+  bandGains: number[];
+  motionSpeed: number;
+  glowIntensity: number;
+  ripplesEnabled: boolean;
+  cameraPreset: CameraPreset;
+  qualityMode: QualityMode;
+  effectiveQuality: EffectiveQuality;
+  lyricMotion: LyricMotionMode;
+  lyricAlignment: LyricAlignment;
+  lyricSize: number;
+  lyricContextOpacity: number;
+  lyricMotionIntensity: number;
+}
 
 export interface VisualState {
   themeId: ThemeId;
@@ -52,6 +71,50 @@ export interface VisualState {
   setLyricMotionIntensity: (value: number) => void;
 }
 
+function clamp(value: unknown, fallback: number, min = 0, max = 100) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(min, Math.min(max, parsed)) : fallback;
+}
+
+export function normalizeVisualPreferences(value: unknown): VisualPreferences {
+  const previous = value && typeof value === 'object' ? value as Partial<VisualPreferences> : {};
+  const themeId = previous.themeId && previous.themeId in VISUAL_THEMES ? previous.themeId : 'coal-amber';
+  const gridSize = [32, 48, 64, 80].includes(Number(previous.gridSize))
+    ? previous.gridSize as VisualPreferences['gridSize']
+    : 64;
+  const bandGains = Array.isArray(previous.bandGains) && previous.bandGains.length === 8
+    ? previous.bandGains.map((gain) => clamp(gain, 50))
+    : new Array<number>(8).fill(50);
+  const qualityMode = ['auto', 'low', 'medium', 'high'].includes(String(previous.qualityMode))
+    ? previous.qualityMode as QualityMode
+    : 'auto';
+  const effectiveQuality = ['low', 'medium', 'high'].includes(String(previous.effectiveQuality))
+    ? previous.effectiveQuality as EffectiveQuality
+    : 'high';
+  const lyricMotion = ['cinematic', 'breathe', 'glow', 'depth', 'static'].includes(String(previous.lyricMotion))
+    ? previous.lyricMotion as LyricMotionMode
+    : 'cinematic';
+  return {
+    themeId,
+    paletteMode: previous.paletteMode === 'preset' ? 'preset' : 'cover',
+    gridSize,
+    bandGains,
+    motionSpeed: clamp(previous.motionSpeed, 54),
+    glowIntensity: clamp(previous.glowIntensity, 58),
+    ripplesEnabled: previous.ripplesEnabled !== false,
+    cameraPreset: ['orbit', 'low-glide', 'slow-push', 'off'].includes(String(previous.cameraPreset))
+      ? previous.cameraPreset as CameraPreset
+      : 'orbit',
+    qualityMode,
+    effectiveQuality,
+    lyricMotion,
+    lyricAlignment: previous.lyricAlignment === 'center' ? 'center' : 'left',
+    lyricSize: clamp(previous.lyricSize, 58, 35, 100),
+    lyricContextOpacity: clamp(previous.lyricContextOpacity, 36, 10, 80),
+    lyricMotionIntensity: clamp(previous.lyricMotionIntensity, 56),
+  };
+}
+
 export const useVisualStore = create<VisualState>()(
   persist(
     (set) => ({
@@ -67,11 +130,11 @@ export const useVisualStore = create<VisualState>()(
       cameraPreset: 'orbit',
       qualityMode: 'auto',
       effectiveQuality: 'high',
-      lyricMotion: 'depth',
+      lyricMotion: 'cinematic',
       lyricAlignment: 'left',
       lyricSize: 58,
-      lyricContextOpacity: 42,
-      lyricMotionIntensity: 70,
+      lyricContextOpacity: 36,
+      lyricMotionIntensity: 56,
       setTheme: (themeId) =>
         set({
           themeId,
@@ -122,27 +185,8 @@ export const useVisualStore = create<VisualState>()(
     }),
     {
       name: 'sonic-atlas-visual-v1',
-      version: 3,
-      migrate: (persisted) => {
-        const previous = (persisted ?? {}) as Partial<VisualState>;
-        return {
-          themeId: previous.themeId ?? 'coal-amber',
-          paletteMode: previous.paletteMode === 'preset' ? 'preset' : 'cover',
-          gridSize: previous.gridSize ?? 64,
-          bandGains: previous.bandGains ?? new Array<number>(8).fill(50),
-          motionSpeed: previous.motionSpeed ?? 54,
-          glowIntensity: previous.glowIntensity ?? 58,
-          ripplesEnabled: previous.ripplesEnabled ?? true,
-          cameraPreset: previous.cameraPreset ?? 'orbit',
-          qualityMode: previous.qualityMode ?? 'auto',
-          effectiveQuality: previous.effectiveQuality ?? 'high',
-          lyricMotion: previous.lyricMotion ?? 'depth',
-          lyricAlignment: previous.lyricAlignment ?? 'left',
-          lyricSize: previous.lyricSize ?? 58,
-          lyricContextOpacity: previous.lyricContextOpacity ?? 42,
-          lyricMotionIntensity: previous.lyricMotionIntensity ?? 70,
-        };
-      },
+      version: 4,
+      migrate: normalizeVisualPreferences,
       partialize: (state) => ({
         themeId: state.themeId,
         paletteMode: state.paletteMode,
@@ -163,3 +207,34 @@ export const useVisualStore = create<VisualState>()(
     },
   ),
 );
+
+export function visualPreferencesSnapshot(state = useVisualStore.getState()): VisualPreferences {
+  return {
+    themeId: state.themeId,
+    paletteMode: state.paletteMode,
+    gridSize: state.gridSize,
+    bandGains: [...state.bandGains],
+    motionSpeed: state.motionSpeed,
+    glowIntensity: state.glowIntensity,
+    ripplesEnabled: state.ripplesEnabled,
+    cameraPreset: state.cameraPreset,
+    qualityMode: state.qualityMode,
+    effectiveQuality: state.effectiveQuality,
+    lyricMotion: state.lyricMotion,
+    lyricAlignment: state.lyricAlignment,
+    lyricSize: state.lyricSize,
+    lyricContextOpacity: state.lyricContextOpacity,
+    lyricMotionIntensity: state.lyricMotionIntensity,
+  };
+}
+
+export function hydrateVisualPreferences(value: unknown) {
+  if (!value || typeof value !== 'object') return false;
+  const preferences = normalizeVisualPreferences(value);
+  useVisualStore.setState({
+    ...preferences,
+    runtimePalette: presetPalette(preferences.themeId),
+    paletteStatus: preferences.paletteMode === 'cover' ? 'loading' : 'ready',
+  });
+  return true;
+}

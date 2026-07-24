@@ -7,7 +7,7 @@ import type { LyricLine, SongSummary } from '../netease/types';
 
 export type RepeatMode = 'sequential' | 'list' | 'one' | 'shuffle';
 
-interface PlayerSession {
+export interface PlayerSession {
   version: 2;
   queue: SongSummary[];
   currentIndex: number;
@@ -52,21 +52,23 @@ interface PlayerState {
 
 const SESSION_KEY = 'sonic-atlas-player-v2';
 let loadGeneration = 0;
+let desktopPersistenceReady = false;
 
 export function trackKey(track: Pick<SongSummary, 'source' | 'id'>) {
   return `${track.source}:${track.id}`;
 }
 
-function readSession(): PlayerSession | null {
+export function normalizePlayerSession(value: unknown): PlayerSession | null {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<PlayerSession>;
+    const parsed = value as Partial<PlayerSession> | null;
+    if (!parsed || typeof parsed !== 'object') return null;
     const queue: SongSummary[] = Array.isArray(parsed.queue)
-      ? parsed.queue.map((track) => ({
-          ...track,
-          source: track.source === 'local' ? 'local' as const : 'netease' as const,
-        }))
+      ? parsed.queue
+          .filter((track): track is SongSummary => Boolean(track && typeof track.id === 'string' && typeof track.title === 'string'))
+          .map((track) => ({
+            ...track,
+            source: track.source === 'local' ? 'local' as const : 'netease' as const,
+          }))
       : [];
     const currentIndex = Math.max(-1, Math.min(Number(parsed.currentIndex ?? -1), queue.length - 1));
     return {
@@ -79,6 +81,15 @@ function readSession(): PlayerSession | null {
         ? parsed.repeatMode as RepeatMode
         : 'list',
     };
+  } catch {
+    return null;
+  }
+}
+
+function readSession(): PlayerSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? normalizePlayerSession(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
@@ -98,6 +109,36 @@ export function persistPlayerSession() {
     repeatMode: state.repeatMode,
   };
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  if (desktopPersistenceReady) void window.sonicAtlas?.savePlayerSession(session);
+}
+
+export function hydratePlayerSession(value: unknown) {
+  const session = normalizePlayerSession(value);
+  if (!session) return false;
+  usePlayerStore.setState({
+    queue: session.queue,
+    currentIndex: session.currentIndex,
+    currentTrack: session.currentIndex >= 0 ? session.queue[session.currentIndex] ?? null : null,
+    mode: 'idle',
+    playing: false,
+    currentTime: session.currentTime,
+    duration: session.queue[session.currentIndex]?.durationMs
+      ? (session.queue[session.currentIndex]?.durationMs ?? 0) / 1_000
+      : 0,
+    volume: session.volume,
+    repeatMode: session.repeatMode,
+    lyrics: [],
+    activeLyricIndex: -1,
+    lyricsLoading: false,
+    error: null,
+    restoredPending: session.currentIndex >= 0,
+  });
+  audioEngine.setVolume(session.volume);
+  return true;
+}
+
+export function enableDesktopSessionPersistence() {
+  desktopPersistenceReady = true;
 }
 
 export function nextQueueIndex(length: number, currentIndex: number, direction: 1 | -1) {

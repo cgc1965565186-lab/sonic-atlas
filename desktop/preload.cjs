@@ -4,6 +4,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('sonicAtlas', {
   getRuntimeConfig: () => ipcRenderer.invoke('runtime:get-config'),
   openInstallHelp: () => ipcRenderer.invoke('app:open-install-help'),
+  setOnboardingComplete: (value) => ipcRenderer.invoke('app:set-onboarding-complete', Boolean(value)),
+  savePlayerSession: (value) => ipcRenderer.invoke('app:save-player-session', value),
+  saveVisualPreferences: (value) => ipcRenderer.invoke('app:save-visual-preferences', value),
   importLocalFiles: () => ipcRenderer.invoke('local:import-files'),
   importLocalFolder: () => ipcRenderer.invoke('local:import-folder'),
   listLocalTracks: () => ipcRenderer.invoke('local:list'),
