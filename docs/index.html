@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0c0b">
-  <meta name="description" content="Sonic Atlas 桌面沉浸式音乐播放器——让每一拍成为可见、可触、可漫游的声音地形。">
-  <title>Sonic Atlas — 让声音成为一片地形</title>
+  <meta name="description" content="Sonic Atlas 0.2 macOS 沉浸式音乐播放器——连接网易云与本地音乐，让播放队列、歌词和每一拍成为可漫游的声音地形。">
+  <title>Sonic Atlas 0.2 — 让音乐成为一片地形</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23101110'/%3E%3Cpath d='M14 43 24 21l8 15 7-20 11 27' fill='none' stroke='%23df8a61' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <style>
     :root {
@@ -133,6 +133,48 @@
     .manifesto p span { color: #66665f; transition: color .8s; }
     .manifesto.is-visible p span { color: var(--text); }
 
+    .update-grid { display: grid; grid-template-columns: 1.18fr .82fr; gap: 16px; align-items: stretch; }
+    .update-flow, .update-notes { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 32px; background: rgba(255,255,255,.025); }
+    .update-flow { min-height: 610px; padding: clamp(26px, 4vw, 52px); isolation: isolate; }
+    .update-flow::before { content: ""; position: absolute; z-index: -1; inset: 34% -20% -42%; background: radial-gradient(circle, rgba(var(--accent-rgb), .18), transparent 62%); filter: blur(30px); }
+    .update-flow-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 30px; }
+    .update-flow h3 { max-width: 560px; margin: 20px 0 8px; font-size: clamp(31px, 4.2vw, 58px); line-height: 1; letter-spacing: -.055em; font-weight: 540; }
+    .update-flow-head p { max-width: 46ch; margin: 0; color: var(--muted); font-size: 13px; }
+    .version-chip { flex: 0 0 auto; padding: 8px 11px; border: 1px solid rgba(var(--accent-rgb), .34); border-radius: 999px; color: var(--hot); background: rgba(var(--accent-rgb), .07); font-size: 9px; letter-spacing: .15em; }
+    .source-map { position: relative; display: grid; grid-template-columns: 1fr 64px 1.1fr; align-items: center; gap: 12px; margin-top: 58px; }
+    .source-stack { display: grid; gap: 10px; }
+    .source-card, .queue-track { border: 1px solid rgba(255,255,255,.1); background: rgba(10,11,10,.5); backdrop-filter: blur(18px); }
+    .source-card { display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 12px; min-height: 72px; padding: 12px; border-radius: 17px; }
+    .source-icon { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; color: var(--hot); background: rgba(var(--accent-rgb), .1); border: 1px solid rgba(var(--accent-rgb), .2); }
+    .source-icon svg { width: 18px; }
+    .source-card strong, .queue-track strong { display: block; font-size: 12px; font-weight: 610; }
+    .source-card small, .queue-track small { display: block; margin-top: 2px; color: var(--dim); font-size: 9px; letter-spacing: .06em; }
+    .flow-link { display: grid; place-items: center; color: var(--dim); }
+    .flow-link::before { content: ""; width: 100%; height: 1px; background: linear-gradient(90deg, var(--line), var(--accent), var(--line)); }
+    .flow-link svg { position: absolute; width: 17px; padding: 3px; background: #151612; border-radius: 50%; }
+    .queue-stack { display: grid; gap: 8px; padding: 12px; border: 1px solid rgba(255,255,255,.09); border-radius: 22px; background: rgba(255,255,255,.025); }
+    .queue-label { display: flex; justify-content: space-between; padding: 2px 4px 7px; color: var(--dim); font-size: 9px; letter-spacing: .13em; }
+    .queue-track { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px; padding: 9px; border-radius: 13px; animation: queueFloat 4s var(--ease) infinite alternate; }
+    .queue-track:nth-child(3) { animation-delay: -.9s; }
+    .queue-track:nth-child(4) { animation-delay: -1.8s; }
+    .queue-art { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(145deg, var(--q1), var(--q2)); }
+    .queue-source { color: var(--dim); font-size: 8px; letter-spacing: .08em; }
+    .flow-caption { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 32px; }
+    .flow-caption span { padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: rgba(0,0,0,.15); font-size: 9px; letter-spacing: .08em; }
+    .update-notes { display: flex; flex-direction: column; padding: clamp(26px, 3.4vw, 42px); }
+    .status-line { display: flex; align-items: center; gap: 9px; color: var(--hot); font-size: 10px; letter-spacing: .14em; }
+    .status-line i { width: 7px; height: 7px; border-radius: 50%; background: var(--hot); box-shadow: 0 0 18px rgba(var(--accent-rgb), .7); animation: breathe 2s ease-in-out infinite; }
+    .update-notes h3 { margin: 22px 0 12px; font-size: clamp(30px, 3.6vw, 46px); line-height: 1.04; letter-spacing: -.05em; font-weight: 540; }
+    .update-notes > p { margin: 0; color: var(--muted); font-size: 13px; }
+    .update-list { display: grid; margin: 34px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+    .update-list li { display: grid; grid-template-columns: 34px 1fr; gap: 10px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+    .update-list span { color: var(--accent); font: 700 9px ui-monospace, monospace; }
+    .update-list strong { display: block; margin-bottom: 3px; font-size: 12px; font-weight: 620; }
+    .update-list small { display: block; color: var(--dim); font-size: 10px; line-height: 1.6; }
+    .update-link { display: inline-flex; align-items: center; gap: 9px; width: max-content; margin-top: auto; padding-top: 28px; color: var(--hot); font-size: 11px; }
+    .update-link svg { width: 14px; transition: transform .25s var(--ease); }
+    .update-link:hover svg { transform: translate(3px, -3px); }
+
     .device-scene { min-height: 760px; display: grid; place-items: center; perspective: 1400px; position: relative; }
     .device-glow { position: absolute; width: min(80vw, 920px); height: 40%; border-radius: 50%; background: rgba(var(--accent-rgb), .13); filter: blur(90px); }
     .macbook { width: min(100%, 1060px); transform: rotateX(8deg) scale(.92); transform-origin: 50% 80%; transition: transform .15s linear; will-change: transform; }
@@ -208,6 +250,23 @@
     .lyric-line.active span { display: inline-block; opacity: 0; transform: translateY(18px); filter: blur(8px); animation: characterIn .7s var(--ease) forwards; animation-delay: calc(var(--i) * 24ms); }
     .translation { display: block; margin-top: 16px; color: var(--muted); font-size: 13px; font-weight: 400; letter-spacing: .04em; }
     .lyrics-kicker { margin-bottom: 60px; color: var(--dim); font-size: 10px; letter-spacing: .18em; }
+    .lyrics-controls { position: relative; z-index: 3; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; width: min(920px, calc(100% - 36px)); margin: 0 auto 46px; }
+    .lyric-mode-button, .lyric-visibility-button { min-height: 36px; padding: 0 13px; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); background: rgba(18,19,16,.58); backdrop-filter: blur(16px); cursor: pointer; font-size: 10px; transition: color .25s, border-color .25s, background .25s, transform .25s var(--ease); }
+    .lyric-mode-button:hover, .lyric-visibility-button:hover { color: var(--text); transform: translateY(-2px); }
+    .lyric-mode-button.is-active { color: #17110d; border-color: var(--hot); background: var(--hot); }
+    .lyric-visibility-button { display: inline-flex; align-items: center; gap: 7px; margin-left: 8px; }
+    .lyric-visibility-button svg { width: 14px; }
+    .lyrics-stage { transition: opacity .55s var(--ease), transform .55s var(--ease), filter .55s var(--ease); }
+    .lyrics-section[data-lyrics-visible="false"] .lyrics-stage { opacity: 0; transform: scale(.96); filter: blur(12px); pointer-events: none; }
+    .lyrics-section[data-lyrics-visible="false"] .lyrics-bg, .lyrics-section[data-lyrics-visible="false"] #lyricParticles { opacity: 0; }
+    .lyrics-section[data-lyric-mode="breathe"] .lyric-line.active { animation: lyricBreathe 2.4s ease-in-out infinite; }
+    .lyrics-section[data-lyric-mode="glow"] .lyric-line.active { background: linear-gradient(100deg, var(--text) 20%, var(--hot) 47%, var(--text) 70%); background-size: 220% 100%; color: transparent; background-clip: text; -webkit-background-clip: text; animation: lyricGlow 2.8s linear infinite; }
+    .lyrics-section[data-lyric-mode="depth"] .lyrics-stage { perspective: 900px; }
+    .lyrics-section[data-lyric-mode="depth"] .lyric-line:not(.active) { transform: rotateX(14deg) translateZ(-60px); filter: blur(1px); }
+    .lyrics-section[data-lyric-mode="depth"] .lyric-line.active { animation: lyricDepth 2.8s var(--ease) infinite alternate; }
+    .lyrics-section[data-lyric-mode="static"] .lyric-line.active span { opacity: 1; transform: none; filter: none; animation: none; }
+    .lyrics-section[data-lyric-mode="static"] #lyricParticles { display: none; }
+    .lyrics-explain { position: relative; z-index: 3; max-width: 62ch; margin: 54px auto 0; padding: 0 20px; color: var(--dim); text-align: center; font-size: 11px; line-height: 1.8; }
 
     .privacy { display: grid; grid-template-columns: 1fr 1fr; gap: 8vw; align-items: center; }
     .privacy h2 { margin: 20px 0; max-width: 620px; font-size: clamp(42px, 6vw, 88px); line-height: .95; letter-spacing: -.065em; font-weight: 520; }
@@ -259,6 +318,10 @@
     @keyframes bars { to { transform: scaleY(.38); opacity: .55; } }
     @keyframes bandflow { to { transform: scaleY(.55); opacity: .5; } }
     @keyframes characterIn { to { opacity: 1; transform: none; filter: none; } }
+    @keyframes queueFloat { to { transform: translateY(-4px); border-color: rgba(var(--accent-rgb), .24); } }
+    @keyframes lyricBreathe { 50% { opacity: .72; transform: scale(.985); filter: blur(.3px); } }
+    @keyframes lyricGlow { to { background-position: -220% 0; } }
+    @keyframes lyricDepth { to { transform: translateZ(28px) rotateX(-2deg); } }
 
     @media (max-width: 980px) {
       .nav { grid-template-columns: 1fr auto; }
@@ -266,7 +329,8 @@
       .hero { grid-template-columns: 1fr; padding-top: 150px; }
       .hero-copy { padding: 0 24px; }
       .hero-stage { width: calc(100% - 24px); margin-left: 24px; height: 620px; min-height: 0; }
-      .section-head, .palette-lab, .privacy, .install-help-head { grid-template-columns: 1fr; }
+      .section-head, .palette-lab, .privacy, .install-help-head, .update-grid { grid-template-columns: 1fr; }
+      .update-flow { min-height: 570px; }
       .bento { grid-template-columns: 1fr; grid-template-rows: 560px 300px 300px; }
       .feature:first-child { grid-row: auto; }
       .palette-stage { order: -1; height: 580px; }
@@ -290,6 +354,12 @@
       .floating-player { left: 16px; right: 16px; bottom: 16px; width: auto; }
       .manifesto { padding: 105px 0 40px; }
       .manifesto-grid { grid-template-columns: 1fr; gap: 20px; }
+      .update-flow { min-height: 680px; }
+      .update-flow-head { display: grid; }
+      .version-chip { width: max-content; }
+      .source-map { grid-template-columns: 1fr; margin-top: 34px; }
+      .flow-link { height: 26px; transform: rotate(90deg); }
+      .queue-track { animation: none; }
       .section-head { gap: 30px; margin-bottom: 42px; }
       .device-scene { min-height: 470px; }
       .screen-shell { padding: 6px 6px 9px; border-radius: 20px 20px 9px 9px; }
@@ -309,6 +379,9 @@
       .band strong { font-size: 8px; }
       .lyrics-section { min-height: 720px; }
       .lyrics-stage .lyric-line:not(.active) { font-size: 13px; }
+      .lyrics-controls { margin-bottom: 34px; }
+      .lyric-mode-button { flex: 1 1 calc(33.333% - 8px); }
+      .lyric-visibility-button { width: 100%; justify-content: center; margin-left: 0; }
       .security-stack { min-height: 550px; }
       .security-card { width: 92%; }
       .install-steps { grid-template-columns: 1fr; }
@@ -325,6 +398,7 @@
       *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .2s !important; }
       .reveal { opacity: 1; transform: none; filter: none; }
       .macbook { transform: none !important; }
+      .queue-track, .lyrics-section[data-lyric-mode] .lyric-line.active { animation: none !important; }
     }
   </style>
 </head>
@@ -339,11 +413,11 @@
         <span>SONIC ATLAS</span>
       </a>
       <div class="nav-links">
-        <a href="#experience">声场</a><a href="#palette">配色</a><a href="#lyrics">歌词</a><a href="#privacy">隐私</a><a href="#macos-install">安装</a>
+        <a href="#update">0.2 更新</a><a href="#experience">声场</a><a href="#lyrics">歌词</a><a href="#privacy">隐私</a><a href="#macos-install">安装</a>
       </div>
       <div class="nav-actions">
         <button class="icon-button" id="motionToggle" type="button" aria-label="暂停页面动画" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-        <a class="icon-button" href="./SonicAtlas-0.1.0-eight-themes-media-keys-arm64.dmg" aria-label="下载 Sonic Atlas"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <a class="icon-button" href="./SonicAtlas-0.1.0-eight-themes-media-keys-arm64.dmg" aria-label="下载当前稳定版 Sonic Atlas 0.1.0"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       </div>
     </nav>
   </div>
@@ -351,14 +425,14 @@
   <main id="main">
     <section class="hero" id="top">
       <div class="hero-copy reveal is-visible">
-        <div class="eyebrow">Desktop Immersive Player · 2026</div>
+        <div class="eyebrow">Sonic Atlas 0.2 · macOS preview</div>
         <h1>让声音，<span>成为一片地形。</span></h1>
-        <p class="hero-lead">Sonic Atlas 将每一段低频、呼吸与瞬态，重构为可见、可漫游的声音地貌。不是频谱装饰，而是一座只属于这首歌的动态世界。</p>
+        <p class="hero-lead">从网易云到你的本地资料库，歌曲进入同一条播放队列；歌词、地形、粒子与光线再把每一次呼吸，重构成可以漫游的动态世界。</p>
         <div class="hero-actions">
-          <a class="primary magnetic" href="./SonicAtlas-0.1.0-eight-themes-media-keys-arm64.dmg"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>下载 macOS ARM64 版</a>
-          <a class="secondary-button magnetic" href="#macos-install">macOS 安装说明<svg viewBox="0 0 24 24" fill="none"><path d="m8 5 7 7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="primary magnetic" href="#update"><svg viewBox="0 0 24 24" fill="none"><path d="M5 17 10 7l4 7 3-10 3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>探索 0.2 更新</a>
+          <a class="secondary-button magnetic" href="./SonicAtlas-0.1.0-eight-themes-media-keys-arm64.dmg">下载当前稳定版<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
         </div>
-        <div class="hero-note"><span><i></i>个人学习与研究</span><span>Electron · React · R3F</span><span>未签名测试构建</span></div>
+        <div class="hero-note"><span><i></i>网易云 + 本地音乐</span><span>原文件不复制、不上传</span><span>0.2.0 候选验证中</span></div>
       </div>
       <div class="hero-stage reveal is-visible">
         <canvas class="terrain-canvas" data-grid="25" aria-label="随节拍起伏的交互式声音地形"></canvas>
@@ -373,19 +447,60 @@
 
     <div class="ticker" aria-label="产品能力">
       <div class="ticker-track">
-        <span>INSTANCED TOPOGRAPHY <i></i> COVER ADAPTIVE PALETTE <i></i> CINEMATIC CAMERA <i></i> 8-BAND VISUAL EQ <i></i> LOCAL-FIRST PRIVACY <i></i> FIVE-LINE LYRICS <i></i></span>
-        <span aria-hidden="true">INSTANCED TOPOGRAPHY <i></i> COVER ADAPTIVE PALETTE <i></i> CINEMATIC CAMERA <i></i> 8-BAND VISUAL EQ <i></i> LOCAL-FIRST PRIVACY <i></i> FIVE-LINE LYRICS <i></i></span>
+        <span>NETEASE + LOCAL LIBRARY <i></i> UNIFIED PLAY QUEUE <i></i> FIVE LYRIC MOTIONS <i></i> ADAPTIVE QUALITY <i></i> WATERMARKED EXPORT <i></i> PRIVACY-SAFE DIAGNOSTICS <i></i></span>
+        <span aria-hidden="true">NETEASE + LOCAL LIBRARY <i></i> UNIFIED PLAY QUEUE <i></i> FIVE LYRIC MOTIONS <i></i> ADAPTIVE QUALITY <i></i> WATERMARKED EXPORT <i></i> PRIVACY-SAFE DIAGNOSTICS <i></i></span>
       </div>
     </div>
 
     <section class="manifesto shell reveal">
-      <div class="manifesto-grid"><div class="manifesto-number mono">01 — MANIFESTO</div><p>我们没有给音乐再加一层界面。<span>我们让界面退后，让节奏、光线与空间站到前面。</span></p></div>
+      <div class="manifesto-grid"><div class="manifesto-number mono">01 — MANIFESTO</div><p>音乐不该被来源分开。<span>进入同一条队列之后，只剩节奏、光线与空间。</span></p></div>
+    </section>
+
+    <section class="section shell" id="update">
+      <div class="section-head reveal">
+        <div><div class="eyebrow">Version 0.2</div><h2>从找到一首歌，到留下一个画面。</h2></div>
+        <p>0.2 围绕完整的聆听链路重新组织体验：导入本地音乐或连接网易云，把曲目编入同一队列，恢复上次进度，再用歌词、地形与短片导出留住此刻。</p>
+      </div>
+      <div class="update-grid">
+        <article class="update-flow reveal" aria-label="网易云和本地音乐进入统一播放队列">
+          <div class="update-flow-head">
+            <div><div class="eyebrow">One listening flow</div><h3>两个来源，<br>一条播放队列。</h3><p>本地音乐只引用原文件。网易云曲目在播放时重新获取地址，两者可以自由排序、下一首播放或加入队尾。</p></div>
+            <span class="version-chip mono">0.2.0 / MACOS</span>
+          </div>
+          <div class="source-map">
+            <div class="source-stack">
+              <div class="source-card"><span class="source-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 18.5a6.5 6.5 0 1 1 10.7-5M9 11.5a3.5 3.5 0 1 0 5.4 2.9M11.5 8a7 7 0 0 1 6.5 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span><strong>网易云音乐</strong><small>账号歌单 · 翻译歌词</small></span></div>
+              <div class="source-card"><span class="source-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7.5h6l1.6 2H20v8.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 7.5V6a2 2 0 0 1 2-2h4l1.7 2H18a2 2 0 0 1 2 2v1.5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span><span><strong>本地音乐</strong><small>文件 / 文件夹 · 内嵌歌词 / LRC</small></span></div>
+            </div>
+            <div class="flow-link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m9 5 7 7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div class="queue-stack">
+              <div class="queue-label"><span>UP NEXT</span><span>04 TRACKS</span></div>
+              <div class="queue-track"><i class="queue-art" style="--q1:#d7794e;--q2:#34251e"></i><span><strong>夜航地形</strong><small>正在播放 · 02:17</small></span><span class="queue-source">NETEASE</span></div>
+              <div class="queue-track"><i class="queue-art" style="--q1:#496f6c;--q2:#172521"></i><span><strong>山脊以南</strong><small>下一首播放</small></span><span class="queue-source">LOCAL</span></div>
+              <div class="queue-track"><i class="queue-art" style="--q1:#72627f;--q2:#211926"></i><span><strong>Atlas No. 03</strong><small>已恢复到 01:42</small></span><span class="queue-source">LOCAL</span></div>
+            </div>
+          </div>
+          <div class="flow-caption"><span>拖动排序</span><span>四种播放模式</span><span>每 5 秒保存</span><span>重启后保持暂停</span></div>
+        </article>
+        <aside class="update-notes reveal">
+          <div class="status-line"><i></i> RELEASE CANDIDATE</div>
+          <h3>更完整，也更克制。</h3>
+          <p>本期只专注 macOS。Apple Music、QQ 音乐与 Windows 版不在 0.2 范围内。</p>
+          <ul class="update-list">
+            <li><span>01</span><div><strong>播放状态真正回来</strong><small>队列、当前歌曲、进度、音量与播放模式都会恢复，但不会自动出声。</small></div></li>
+            <li><span>02</span><div><strong>弱网不再误伤长音频</strong><small>15 秒限制只覆盖连接和响应头，不再中断已经正常播放的音频流。</small></div></li>
+            <li><span>03</span><div><strong>视觉作品保留边界</strong><small>PNG 截图或最长 15 秒短片始终带品牌水印，不提供完整歌曲或纯音频导出。</small></div></li>
+            <li><span>04</span><div><strong>问题由你决定是否反馈</strong><small>诊断摘要先预览、再复制或导出，不后台上传，也不包含凭据和完整路径。</small></div></li>
+          </ul>
+          <a class="update-link" href="https://github.com/cgc1965565186-lab/sonic-atlas/pull/1" target="_blank" rel="noreferrer">查看 0.2 开发进展<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7m0 0H9m8 0v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        </aside>
+      </div>
     </section>
 
     <section class="section shell" id="experience">
       <div class="section-head reveal">
         <div><div class="eyebrow">The listening space</div><h2>一块会呼吸的声音坐标。</h2></div>
-        <p>64×64 柱体并不随机舞动。低频聚拢成有重量的中心块群，中频形成连贯流场，高频只点亮边缘、波峰与空气粒子。每一层响应，都有秩序。</p>
+        <p>地形并不随机舞动。低频聚拢成有重量的中心块群，中频形成连贯流场，高频只点亮边缘、波峰与空气粒子；自动画质会根据持续帧率调整精度，而不是频繁跳档。</p>
       </div>
       <div class="device-scene reveal">
         <div class="device-glow"></div>
@@ -397,19 +512,19 @@
         </div>
       </div>
       <div class="stats reveal">
-        <div class="stat"><strong data-count="4096">0</strong><span>Instanced cells</span></div>
-        <div class="stat"><strong data-count="1">0</strong><span>Terrain draw call</span></div>
-        <div class="stat"><strong data-count="8">0</strong><span>Visual frequency bands</span></div>
-        <div class="stat"><strong data-count="60">0</strong><span>Target frames / sec</span></div>
+        <div class="stat"><strong data-count="2">0</strong><span>Music sources</span></div>
+        <div class="stat"><strong data-count="4">0</strong><span>Playback modes</span></div>
+        <div class="stat"><strong data-count="5">0</strong><span>Lyric motions</span></div>
+        <div class="stat"><strong data-count="15">0</strong><span>Max export seconds</span></div>
       </div>
     </section>
 
     <section class="section shell">
-      <div class="section-head reveal"><div><div class="eyebrow">Designed in layers</div><h2>克制，但绝不单调。</h2></div><p>颜色、涟漪、镜头和歌词各自只负责一件事。它们不是争抢注意力的特效，而是共同服务于音乐情绪的一套电影语言。</p></div>
+      <div class="section-head reveal"><div><div class="eyebrow">Designed in layers</div><h2>沉浸，也要能自己掌控。</h2></div><p>画质、歌词、镜头和导出都可以按场景选择。系统“减少动态效果”会得到尊重；进入全屏后，也可以用一个按键把歌词完全留在画面之外。</p></div>
       <div class="bento">
-        <article class="feature spotlight reveal"><div class="feature-label"><span>SONIC TOPOGRAPHY</span><span class="feature-index">01</span></div><h3>一张真正随频率塑形的地形。</h3><p>单个 InstancedMesh 承载完整矩阵，包络与软限高让高峰保留力度，也不会撕裂画面。</p><div class="matrix-art" aria-hidden="true"></div></article>
-        <article class="feature spotlight reveal"><div class="feature-label"><span>COLOR INTELLIGENCE</span><span class="feature-index">02</span></div><h3>封面决定这一首歌的光。</h3><p>OKLab 聚类提取克制的主色、双辅助色与高光，切歌时在 1.35 秒内自然过渡。</p><div class="palette-orbit" aria-hidden="true"></div></article>
-        <article class="feature spotlight reveal"><div class="feature-label"><span>CINEMATIC MOTION</span><span class="feature-index">03</span></div><h3>镜头跟随能量，而不是晃动。</h3><p>环绕巡航、低空贴地与缓慢推近，用平滑阻尼把节拍变成镜头呼吸。</p><svg class="camera-path" viewBox="0 0 300 120" aria-hidden="true"><path d="M4 88C65 10 118 112 171 51s89-38 126-43"/><circle cx="171" cy="51" r="4" fill="currentColor"/></svg></article>
+        <article class="feature spotlight reveal"><div class="feature-label"><span>ADAPTIVE TOPOGRAPHY</span><span class="feature-index">01</span></div><h3>画质跟着设备走，音乐不用让路。</h3><p>自动模式观察持续帧率，低帧 10 秒后降档，稳定 20 秒才允许升档；也可锁定低、中、高任一档。</p><div class="matrix-art" aria-hidden="true"></div></article>
+        <article class="feature spotlight reveal"><div class="feature-label"><span>VISUAL EXPORT</span><span class="feature-index">02</span></div><h3>留下画面，不带走整首歌。</h3><p>支持四种截图比例与 5、10、15 秒实时短片。Sonic Atlas 水印始终保留，也可追加自己的昵称或短句。</p><div class="palette-orbit" aria-hidden="true"></div></article>
+        <article class="feature spotlight reveal"><div class="feature-label"><span>IMMERSIVE CONTROL</span><span class="feature-index">03</span></div><h3>按下 L，让歌词退出全屏。</h3><p>隐藏的是歌词图层，不是歌词数据。截图和短片会遵循当前状态，留下只有地形、粒子、灯光与封面配色的纯视觉作品。</p><svg class="camera-path" viewBox="0 0 300 120" aria-hidden="true"><path d="M4 88C65 10 118 112 171 51s89-38 126-43"/><circle cx="171" cy="51" r="4" fill="currentColor"/></svg></article>
       </div>
     </section>
 
@@ -426,18 +541,27 @@
       </div>
     </section>
 
-    <section class="section lyrics-section" id="lyrics">
+    <section class="section lyrics-section" id="lyrics" data-lyric-mode="cinematic" data-lyrics-visible="true">
       <div class="lyrics-bg"></div><canvas id="lyricParticles" aria-hidden="true"></canvas>
+      <div class="lyrics-controls" aria-label="歌词视觉演示控制">
+        <button class="lyric-mode-button is-active" type="button" data-mode="cinematic" aria-pressed="true">电影淡入</button>
+        <button class="lyric-mode-button" type="button" data-mode="breathe" aria-pressed="false">呼吸聚焦</button>
+        <button class="lyric-mode-button" type="button" data-mode="glow" aria-pressed="false">逐字流光</button>
+        <button class="lyric-mode-button" type="button" data-mode="depth" aria-pressed="false">景深漂移</button>
+        <button class="lyric-mode-button" type="button" data-mode="static" aria-pressed="false">静态模式</button>
+        <button class="lyric-visibility-button" id="lyricVisibilityToggle" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 12s3.5-5 9-5 9 5 9 5-3.5 5-9 5-9-5-9-5Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.7"/></svg><span>隐藏歌词</span></button>
+      </div>
       <div class="lyrics-stage reveal"><div class="lyrics-kicker mono">LYRICS / FRAME 02:47.182</div><p class="lyric-line">风从未停下，只是换了方向</p><p class="lyric-line">城市的光落进很远的海</p><p class="lyric-line active" id="activeLyric" aria-live="polite"></p><p class="lyric-line">每一个回声都找到自己的岸</p><p class="lyric-line">而我们继续向声音深处走</p></div>
+      <p class="lyrics-explain">试试五种歌词语言，或模拟全屏隐藏。真实应用还支持字号、对齐、前后行透明度和动效强度；macOS“减少动态效果”开启后会自动使用更克制的过渡，但不会擅自隐藏歌词。</p>
     </section>
 
     <section class="section shell" id="privacy">
       <div class="privacy">
-        <div class="reveal"><div class="eyebrow">Local by design</div><h2>沉浸，不以隐私为代价。</h2><p>网易云登录凭据只留在你的电脑上。主进程通过系统安全存储加密，Renderer 无法读取 Cookie；本地服务只监听 127.0.0.1，也不会缓存或重新分发完整音乐。</p></div>
+        <div class="reveal"><div class="eyebrow">Local by design</div><h2>沉浸，不以隐私为代价。</h2><p>本地音乐只引用原文件，不复制、不上传。完整路径只留在主进程的当前用户私有索引中；网易云登录凭据由系统安全存储加密，Renderer 无法读取 Cookie。</p></div>
         <div class="security-stack reveal">
-          <article class="security-card"><header><span>01 / CREDENTIALS</span><svg viewBox="0 0 24 24" fill="none"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></header><strong>macOS Keychain 保护登录状态</strong><p>safeStorage 不可用时仅保留本次会话，不降级为明文文件。</p></article>
-          <article class="security-card"><header><span>02 / NETWORK</span><svg viewBox="0 0 24 24" fill="none"><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16M4 12a8 8 0 1 0 16 0 8 8 0 1 0-16 0" stroke="currentColor" stroke-width="1.7"/></svg></header><strong>只连接本机代理和白名单域名</strong><p>封面、歌词和媒体 Range 都经过本机服务统一校验。</p></article>
-          <article class="security-card"><header><span>03 / RIGHTS</span><svg viewBox="0 0 24 24" fill="none"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></header><strong>尊重会员、版权与地区限制</strong><p>不解灰、不换源，只播放当前账号已有权限的内容。</p></article>
+          <article class="security-card"><header><span>01 / LOCAL FILES</span><svg viewBox="0 0 24 24" fill="none"><path d="M4 7.5h6l1.6 2H20v8.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.7"/></svg></header><strong>原文件一直留在原位置</strong><p>界面只通过内部曲目 ID 访问音频、封面和歌词，不能读取任意文件路径。</p></article>
+          <article class="security-card"><header><span>02 / CREDENTIALS</span><svg viewBox="0 0 24 24" fill="none"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></header><strong>macOS 安全存储保护登录状态</strong><p>不可用时只保留本次会话，不降级为明文凭据文件。</p></article>
+          <article class="security-card"><header><span>03 / DIAGNOSTICS</span><svg viewBox="0 0 24 24" fill="none"><path d="M5 19h14M7 16V8m5 8V4m5 12v-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></header><strong>诊断报告默认完成脱敏</strong><p>不记录 Cookie、完整歌曲地址或本地完整路径，也不会在后台自动上传。</p></article>
         </div>
       </div>
     </section>
@@ -459,11 +583,11 @@
     </section>
 
     <section class="cta shell" id="download">
-      <div class="cta-box reveal"><div class="eyebrow">Available now · macOS ARM64</div><h2>下一首歌，去地形里听。</h2><p>Sonic Atlas 当前为个人学习与研究版。下载后拖入“应用程序”即可开始；没有音乐时，内置 110 BPM Demo 也能完整体验声场。</p><div class="cta-actions"><a class="primary magnetic" href="./SonicAtlas-0.1.0-eight-themes-media-keys-arm64.dmg"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>下载 Sonic Atlas 0.1.0</a><a class="secondary-button magnetic" href="#top">回到地形</a></div><div class="cta-legal">ARM64 · 186 MB · 未签名本机验证构建 · 仅限个人学习与研究</div></div>
+      <div class="cta-box reveal"><div class="eyebrow">0.2.0 preview · macOS ARM64</div><h2>下一首歌，去地形里听。</h2><p>0.2.0 正在完成候选验证，当前公开下载仍为 0.1.0 稳定测试版。你可以先体验核心声场，也可以查看 0.2 的开发进展与完整变更。</p><div class="cta-actions"><a class="primary magnetic" href="./SonicAtlas-0.1.0-eight-themes-media-keys-arm64.dmg"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>下载当前稳定版 0.1.0</a><a class="secondary-button magnetic" href="https://github.com/cgc1965565186-lab/sonic-atlas/pull/1" target="_blank" rel="noreferrer">查看 0.2 开发进展</a></div><div class="cta-legal">macOS ARM64 · 未签名测试构建 · 仅限个人学习与研究 · 0.2 不包含 Windows 版</div></div>
     </section>
   </main>
 
-  <footer class="footer shell"><div><div class="footer-brand">SONIC ATLAS</div><div style="margin-top:14px">把声音映射成一片可漫游的地形。</div></div><div class="footer-links"><a href="#experience">声场</a><a href="#palette">配色</a><a href="#lyrics">歌词</a><a href="#privacy">隐私</a><span>© 2026</span></div></footer>
+  <footer class="footer shell"><div><div class="footer-brand">SONIC ATLAS</div><div style="margin-top:14px">网易云与本地音乐，共享一片可漫游的声音地形。</div></div><div class="footer-links"><a href="#update">0.2 更新</a><a href="#experience">声场</a><a href="#lyrics">歌词</a><a href="#privacy">隐私</a><span>© 2026</span></div></footer>
 
   <script>
     (() => {
@@ -501,7 +625,7 @@
         constructor(canvas) {
           this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.n=Number(canvas.dataset.grid)||23;
           this.pointer={x:0,y:0,active:0}; this.ripples=[-10,-10,-10]; this.rippleIndex=0; this.palette=globalPalette;
-          this.visible=true; this.resize=this.resize.bind(this); this.draw=this.draw.bind(this);
+          this.visible=true; this.lastMotionState=null; this.resize=this.resize.bind(this); this.draw=this.draw.bind(this);
           this.resize(); new ResizeObserver(this.resize).observe(canvas);
           new IntersectionObserver(entries => { this.visible=entries[0].isIntersecting; }, {rootMargin:'120px'}).observe(canvas);
           canvas.addEventListener('pointermove', e => { const r=canvas.getBoundingClientRect(); this.pointer.x=(e.clientX-r.left)/r.width*2-1; this.pointer.y=(e.clientY-r.top)/r.height*2-1; this.pointer.active=1; }, {passive:true});
@@ -510,8 +634,8 @@
           requestAnimationFrame(this.draw);
         }
         resize(){ const r=this.canvas.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,1.5); this.canvas.width=Math.max(1,Math.floor(r.width*d)); this.canvas.height=Math.max(1,Math.floor(r.height*d)); this.ctx.setTransform(d,0,0,d,0,0); this.w=r.width; this.h=r.height; }
-        setPalette(colors){ this.palette=colors.slice(); }
-        draw(now){ requestAnimationFrame(this.draw); if(!this.visible) return; const ctx=this.ctx,w=this.w,h=this.h,t=now*.001; ctx.clearRect(0,0,w,h);
+        setPalette(colors){ this.palette=colors.slice(); this.lastMotionState=null; }
+        draw(now){ requestAnimationFrame(this.draw); if(!this.visible) return; if(!motionEnabled&&this.lastMotionState===false)return; this.lastMotionState=motionEnabled; const ctx=this.ctx,w=this.w,h=this.h,t=motionEnabled?now*.001:.35; ctx.clearRect(0,0,w,h);
           const bg=ctx.createRadialGradient(w*.58,h*.42,0,w*.58,h*.42,w*.78); bg.addColorStop(0,mix(this.palette[0],'#0b0c0b',.78)); bg.addColorStop(.48,mix(this.palette[1],'#080908',.88)); bg.addColorStop(1,'#080908'); ctx.fillStyle=bg; ctx.fillRect(0,0,w,h);
           const n=this.n,cw=Math.min(w/(n*1.08),h/(n*.72)),ch=cw*.37,cx=w*.54,hy=h*.19, maxH=Math.min(76,h*.15);
           for(let z=0;z<n;z++) for(let x=0;x<n;x++){
@@ -555,13 +679,38 @@
 
       const lyricTexts=[['这一拍，正抵达它的光','This pulse is arriving at its light'],['让低频沉入大地的中央','Let the bass settle into the earth'],['所有颜色，都从一首歌生长','Every color grows from a song']]; let lyricIndex=0; const lyric=document.getElementById('activeLyric');
       const setLyric=()=>{ const [text,translation]=lyricTexts[lyricIndex%lyricTexts.length]; lyric.innerHTML=[...text].map((c,i)=>`<span style="--i:${i}">${c===' '?'&nbsp;':c}</span>`).join('')+`<small class="translation">${translation}</small>`; burstParticles(); lyricIndex++; };
+      const lyricsSection=document.getElementById('lyrics');
+      document.querySelectorAll('.lyric-mode-button').forEach(button=>button.addEventListener('click',()=>{
+        const mode=button.dataset.mode;
+        lyricsSection.dataset.lyricMode=mode;
+        document.querySelectorAll('.lyric-mode-button').forEach(item=>{ const active=item===button; item.classList.toggle('is-active',active); item.setAttribute('aria-pressed',String(active)); });
+        setLyric();
+      }));
+      const lyricVisibilityToggle=document.getElementById('lyricVisibilityToggle');
+      lyricVisibilityToggle.addEventListener('click',()=>{
+        const visible=lyricsSection.dataset.lyricsVisible!=='false';
+        lyricsSection.dataset.lyricsVisible=String(!visible);
+        lyricVisibilityToggle.setAttribute('aria-pressed',String(visible));
+        lyricVisibilityToggle.querySelector('span').textContent=visible?'显示歌词':'隐藏歌词';
+      });
       const particleCanvas=document.getElementById('lyricParticles'),pctx=particleCanvas.getContext('2d'),particles=Array.from({length:76},()=>({x:0,y:0,vx:0,vy:0,life:0,size:1}));
       const resizeParticles=()=>{const d=Math.min(devicePixelRatio||1,1.5),r=particleCanvas.getBoundingClientRect();particleCanvas.width=r.width*d;particleCanvas.height=r.height*d;pctx.setTransform(d,0,0,d,0,0);particleCanvas._w=r.width;particleCanvas._h=r.height}; new ResizeObserver(resizeParticles).observe(particleCanvas);resizeParticles();
       function burstParticles(){ if(!motionEnabled)return; const w=particleCanvas._w,h=particleCanvas._h; particles.forEach((p,i)=>{const a=i/particles.length*Math.PI*2+(i%7)*.18,s=.25+(i%9)*.055;p.x=w*.5+(Math.sin(i*8.21)*w*.16);p.y=h*.5+(Math.cos(i*5.13)*22);p.vx=Math.cos(a)*s;p.vy=Math.sin(a)*s-.12;p.life=1;p.size=.6+(i%4)*.45;}); }
       const drawParticles=()=>{requestAnimationFrame(drawParticles);if(!motionEnabled)return;pctx.clearRect(0,0,particleCanvas._w,particleCanvas._h);const c=hex(globalPalette[2]);particles.forEach(p=>{if(p.life<=0)return;p.x+=p.vx;p.y+=p.vy;p.vy+=.002;p.life-=.012;pctx.beginPath();pctx.arc(p.x,p.y,p.size,0,Math.PI*2);pctx.fillStyle=`rgba(${c.r},${c.g},${c.b},${Math.max(0,p.life)*.38})`;pctx.fill();});};drawParticles();setLyric();const lyricTimer=setInterval(()=>{if(motionEnabled)setLyric()},4300);
 
-      const playButton=document.querySelector('.play-button'); playButton.addEventListener('click',()=>{ motionEnabled=!motionEnabled; document.body.classList.toggle('motion-paused',!motionEnabled); playButton.setAttribute('aria-label',motionEnabled?'暂停演示':'继续演示'); playButton.innerHTML=motionEnabled?'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3.5v14H7zm6.5 0H17v14h-3.5z"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 11 7-11 7z"/></svg>'; });
-      const motionToggle=document.getElementById('motionToggle'); motionToggle.addEventListener('click',()=>{motionEnabled=!motionEnabled;document.body.classList.toggle('motion-paused',!motionEnabled);motionToggle.setAttribute('aria-pressed',String(!motionEnabled));motionToggle.setAttribute('aria-label',motionEnabled?'暂停页面动画':'继续页面动画');motionToggle.innerHTML=motionEnabled?'<svg viewBox="0 0 24 24" fill="none"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 11 7-11 7z"/></svg>';});
+      const playButton=document.querySelector('.play-button'),motionToggle=document.getElementById('motionToggle');
+      const syncMotionControls=()=>{
+        document.body.classList.toggle('motion-paused',!motionEnabled);
+        playButton.setAttribute('aria-label',motionEnabled?'暂停演示':'继续演示');
+        playButton.innerHTML=motionEnabled?'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3.5v14H7zm6.5 0H17v14h-3.5z"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 11 7-11 7z"/></svg>';
+        motionToggle.setAttribute('aria-pressed',String(!motionEnabled));
+        motionToggle.setAttribute('aria-label',motionEnabled?'暂停页面动画':'继续页面动画');
+        motionToggle.innerHTML=motionEnabled?'<svg viewBox="0 0 24 24" fill="none"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 11 7-11 7z"/></svg>';
+      };
+      const toggleMotion=()=>{motionEnabled=!motionEnabled;syncMotionControls();};
+      playButton.addEventListener('click',toggleMotion);
+      motionToggle.addEventListener('click',toggleMotion);
+      syncMotionControls();
       addEventListener('beforeunload',()=>clearInterval(lyricTimer));
     })();
   </script>
