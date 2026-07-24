@@ -2,6 +2,7 @@ import path from 'node:path';
 import express from 'express';
 import { createNeteaseService, NeteaseError } from './netease-service.mjs';
 import { proxyAudio, proxyImage } from './media-proxy.mjs';
+import { localLyrics, streamLocalAudio, streamLocalCover } from './local-media.mjs';
 
 function clampInteger(value, fallback, min, max) {
   const parsed = Number.parseInt(String(value ?? ''), 10);
@@ -16,7 +17,7 @@ function sendError(res, error) {
   res.status(500).json({ code: 'INTERNAL_ERROR', message: '本地服务处理请求时发生错误', retryable: true });
 }
 
-export async function startLocalServer({ distDir, dev = false, getCookie, getPersistence }) {
+export async function startLocalServer({ distDir, dev = false, getCookie, getPersistence, localLibrary, log = () => {} }) {
   const app = express();
   const netease = createNeteaseService({ getCookie, getPersistence });
   app.disable('x-powered-by');
@@ -34,6 +35,31 @@ export async function startLocalServer({ distDir, dev = false, getCookie, getPer
   });
 
   app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'sonic-atlas' }));
+
+  app.get('/api/local/tracks', (_req, res) => res.json({ tracks: localLibrary?.list() ?? [] }));
+
+  app.get('/api/local/tracks/:id/stream', async (req, res) => {
+    try {
+      await streamLocalAudio(localLibrary?.getEntry(String(req.params.id)), req.headers.range, res);
+    } catch (error) {
+      log('error', 'local-stream', error);
+      if (!res.headersSent) sendError(res, error);
+      else res.destroy();
+    }
+  });
+
+  app.get('/api/local/tracks/:id/cover', async (req, res) => {
+    await streamLocalCover(localLibrary?.getCoverPath(String(req.params.id)), res);
+  });
+
+  app.get('/api/local/tracks/:id/lyrics', (req, res) => {
+    const entry = localLibrary?.getEntry(String(req.params.id));
+    if (!entry) {
+      res.status(404).json({ code: 'LOCAL_TRACK_MISSING', message: '本地曲目不存在', retryable: false });
+      return;
+    }
+    res.json(localLyrics(entry));
+  });
 
   app.get('/api/netease/auth/status', async (_req, res) => {
     res.json(await netease.getAuthStatus());
@@ -93,6 +119,7 @@ export async function startLocalServer({ distDir, dev = false, getCookie, getPer
       const playback = await netease.playback(String(req.params.id));
       await proxyAudio(playback.upstreamUrl, req.headers.range, res);
     } catch (error) {
+      log('warn', 'netease-stream', error);
       if (!res.headersSent) sendError(res, error);
       else res.destroy();
     }
@@ -109,7 +136,8 @@ export async function startLocalServer({ distDir, dev = false, getCookie, getPer
   app.get('/api/media/image', async (req, res) => {
     try {
       await proxyImage(String(req.query.source ?? ''), res);
-    } catch {
+    } catch (error) {
+      log('warn', 'image-proxy', error);
       if (!res.headersSent) {
         res.status(502).json({ code: 'IMAGE_PROXY_FAILED', message: '封面加载失败', retryable: true });
       } else {

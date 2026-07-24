@@ -52,6 +52,7 @@ export function normalizeSong(song) {
   const coverSource = album.picUrl ?? song.picUrl ?? '';
   return {
     id: String(song.id ?? ''),
+    source: 'netease',
     title: String(song.name ?? '未知曲目'),
     artists: artists.map((artist) => String(artist.name ?? '')).filter(Boolean),
     album: {

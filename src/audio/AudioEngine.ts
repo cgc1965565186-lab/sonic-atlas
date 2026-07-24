@@ -50,6 +50,7 @@ class AudioEngine {
   private mediaSource: MediaElementAudioSourceNode | null = null;
   private demoSource: AudioBufferSourceNode | null = null;
   private demoBuffer: AudioBuffer | null = null;
+  private captureDestination: MediaStreamAudioDestinationNode | null = null;
   private readonly frequencyData = new Uint8Array(1_024);
   private readonly smoothedBands = new Float32Array(8);
   private readonly frame: AudioFrame = {
@@ -143,18 +144,62 @@ class AudioEngine {
     this.updateStatus({ mode: 'demo', playing: true, currentTime: 0, duration: 0, error: null });
   }
 
-  async loadStream(url: string) {
+  async loadStream(url: string, options: { autoplay?: boolean; startAt?: number } = {}) {
     await this.initialize();
     this.stopDemoSource();
     const media = this.ensureMedia();
+    media.pause();
     media.src = url;
-    media.currentTime = 0;
-    this.updateStatus({ mode: 'stream', playing: false, currentTime: 0, duration: 0, error: null });
+    const startAt = Math.max(0, options.startAt ?? 0);
+    if (startAt > 0) {
+      await new Promise<void>((resolve) => {
+        const ready = () => {
+          cleanup();
+          media.currentTime = Math.min(startAt, Number.isFinite(media.duration) ? media.duration : startAt);
+          resolve();
+        };
+        const failed = () => {
+          cleanup();
+          resolve();
+        };
+        const cleanup = () => {
+          media.removeEventListener('loadedmetadata', ready);
+          media.removeEventListener('error', failed);
+        };
+        media.addEventListener('loadedmetadata', ready);
+        media.addEventListener('error', failed);
+        media.load();
+      });
+    } else {
+      media.currentTime = 0;
+    }
+    this.updateStatus({ mode: 'stream', playing: false, currentTime: startAt, duration: 0, error: null });
+    if (options.autoplay === false) return;
     try {
       await media.play();
     } catch {
       this.updateStatus({ playing: false, error: '浏览器阻止了自动播放，请再次点击播放' });
     }
+  }
+
+  stop() {
+    this.stopDemoSource();
+    if (this.media) {
+      this.media.pause();
+      this.media.removeAttribute('src');
+      this.media.load();
+    }
+    this.updateStatus({ mode: 'idle', playing: false, currentTime: 0, duration: 0, error: null });
+  }
+
+  async getCaptureStream() {
+    await this.initialize();
+    if (!this.context || !this.masterGain) throw new Error('音频引擎尚未就绪');
+    if (!this.captureDestination) {
+      this.captureDestination = this.context.createMediaStreamDestination();
+      this.masterGain.connect(this.captureDestination);
+    }
+    return this.captureDestination.stream;
   }
 
   async toggle() {

@@ -8,10 +8,11 @@ export const AirParticles = memo(function AirParticles() {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.PointsMaterial>(null);
   const palette = useVisualStore((state) => state.runtimePalette);
+  const quality = useVisualStore((state) => state.effectiveQuality);
   const currentColor = useRef(new THREE.Color(palette.hot));
   const targetColor = useMemo(() => new THREE.Color(palette.hot), [palette.hot]);
   const positions = useMemo(() => {
-    const count = 260;
+    const count = quality === 'low' ? 100 : quality === 'medium' ? 180 : 260;
     const values = new Float32Array(count * 3);
     let seed = 7;
     const random = () => {
@@ -24,7 +25,7 @@ export const AirParticles = memo(function AirParticles() {
       values[index * 3 + 2] = (random() - 0.5) * 38;
     }
     return values;
-  }, []);
+  }, [quality]);
 
   useFrame(({ clock }, delta) => {
     if (pointsRef.current) pointsRef.current.rotation.y += delta * 0.012;
