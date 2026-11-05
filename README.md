@@ -110,3 +110,7 @@ Mac 媒体键在应用前台可直接使用；若希望应用位于后台时仍�
 ## Electron 重启规则
 
 修改 `desktop/main.js`、`desktop/preload.cjs`、`desktop/auth-store.mjs`、`server/`、Electron Builder 配置或 IPC 后，必须完整退出并重新运行 `npm run dev:electron`。单纯修改 `src/` 前端文件可由 Vite 热更新。
+
+## 许可
+
+本项目以 MIT 协议开源，详见 [LICENSE](LICENSE)。欢迎提交 Issue 与 Pull Request。
