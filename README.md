@@ -1,5 +1,7 @@
 # Sonic Atlas
 
+**English**: Sonic Atlas is a desktop immersive music player that maps programmatic demos, NetEase Cloud Music, or local tracks into an audio-reactive sonic topography — built with Electron, React 19, Three.js (React Three Fiber), and the Web Audio API. A macOS (Apple Silicon) build is available on the Releases page.
+
 Sonic Atlas 是一个面向个人学习与研究的桌面沉浸式音乐播放器。0.2 版把程序化 Demo、网易云音乐或本地音乐的实时频谱映射为声音地形，并加入混合播放队列、多种歌词动效、自适应画质、视觉导出与脱敏诊断。
 
 - 产品介绍网站：[cgc1965565186-lab.github.io/sonic-atlas](https://cgc1965565186-lab.github.io/sonic-atlas/)
